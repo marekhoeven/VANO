@@ -2,11 +2,15 @@
 VANO: a NANO light-wallet browser extension
 
 # Acknowledgements
-This webextension could'nt be made without the following:
+Special thanks to the following people. You made the creation of this extension a lot easier!
+- [Kocal/vue-web-extension](https://github.com/Kocal/vue-web-extension) - Vue-web-extension template
 - [cronoh/nanovault](https://github.com/cronoh/nanovault) - Nanovault wallet
 - [numtel/nano-webgl-pow](https://github.com/numtel/nano-webgl-pow) - WebGL PoW Implementation
 - [jaimehgb/RaiBlocksWebAssemblyPoW](https://github.com/jaimehgb/RaiBlocksWebAssemblyPoW) - CPU PoW Implementation
 - [dcposch/blakejs](https://github.com/dcposch/blakejs) - Blake2b Implementation
 - [dchest/tweetnacl-js](https://github.com/dchest/tweetnacl-js) - Cryptography Implementation
 
-If you have found NanoVault useful and are feeling generous, you can donate at `xrb_318syypnqcgdouy3p3ekckwmnmmyk5z3dpyq48phzndrmmspyqdqjymoo8hj`
+## Donate
+If you like what I've made and/or are feeling generous, you can donate to me at 
+`xrb_3tfccg1pfr9k8o548jb6bj9fyyc4mmhnpepounzneobfwuq8won9enactbkk` <3
+
