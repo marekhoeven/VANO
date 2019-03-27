@@ -3,6 +3,7 @@ node_modules/
 /*.log
 /dist
 /dist-zip
+package-lock.json
 
 # Dont' track ENV variables
 *.env
