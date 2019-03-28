@@ -64,8 +64,8 @@ export default {
   methods: {
     bgMessages(msg) {
       if (msg.action === "isLocked") {
-        this.isUnlocked = msg.data;
-        if (msg.data) {
+        this.isUnlocked = !msg.data;
+        if (this.isUnlocked) {
           this.from = "dashboard";
         } else {
           this.from = "locked";

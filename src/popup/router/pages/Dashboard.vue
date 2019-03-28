@@ -1,7 +1,7 @@
 <template>
   <div class="wallet">
-    <div class="header container">
-      <div class="headerText no-hl">
+    <div class="header">
+      <div class="headerText no-hl container">
         <h1>Dashboard</h1>
         <p>View your wallet details below</p>
       </div>
@@ -14,7 +14,7 @@
       </div>
       <div class="links no-hl">
         <a class="link" @click="toPage('transactions')">
-          <span>Recent transactions</span>
+          <span>Transaction history</span>
           <span class="pending">({{total_pending}})</span>
           <svg width="7" height="10" viewBox="0 0 7 10" xmlns="http://www.w3.org/2000/svg">
             <path d="M0 8.825L3.81667 5L0 1.175L1.175 0L6.175 5L1.175 10L0 8.825Z"></path>
@@ -57,18 +57,13 @@ export default {
         let data = msg.data;
         this.balance = data.balance;
         this.total_pending = data.total_pending;
-      }
-
-      if (msg.action === "publicAccount") {
-        this.address = msg.data;
+        this.address = data.publicAccount;
       }
     }
   },
   beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({ action: "update" });
-    this.$bus.postMessage({ action: "onlineCheck" });
-    this.$bus.postMessage({ action: "publicAccount" });
   },
   mixins: [navigation]
 };
@@ -78,6 +73,9 @@ export default {
 .wallet {
   background-color: #f7f7f7 !important;
   height: 100%;
+  font-family: "RubikMedium", sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -170,9 +168,7 @@ export default {
 }
 
 .amount {
-  font-family: "Roboto Mono", sans-serif;
-  font-style: normal;
-  font-weight: bold;
+  font-family: "RobotoMonoBold", sans-serif;
   font-size: 24px;
   line-height: 31px;
   color: #222426;
@@ -180,7 +176,7 @@ export default {
 
 .link span.pending {
   padding-left: 5px;
-  font-family: "Roboto Mono", sans-serif;
+  font-family: "RobotoMonoMedium", sans-serif;
   font-style: normal;
   font-weight: bold;
   font-size: 13px;
@@ -190,28 +186,33 @@ export default {
 
 .btns {
   width: 100%;
-  position: absolute;
-  bottom: 0;
   display: flex;
-  height: 45px;
-
-  button {
-    width: 50%;
-    border: none;
-    font-style: normal;
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 21px;
-    color: #ffffff;
-    cursor: pointer;
-  }
+  flex-grow: 1;
 
   button:first-child {
     background-color: #2f55df;
+    &:hover {
+      background-color: #1c3693;
+    }
   }
 
   button:last-child {
     background-color: #1e3fba;
+    &:hover {
+      background-color: #1c3693;
+    }
+  }
+
+  button {
+    height: 50px;
+    font-size: 15px;
+    font-family: "RubikMedium";
+    margin-top: auto;
+    width: 50%;
+    border: none;
+    border-radius: 0px;
+    color: #ffffff;
+    cursor: pointer;
   }
 }
 </style>

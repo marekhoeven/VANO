@@ -1,19 +1,29 @@
 <template>
   <div class="transactions">
-    <div class="header container">
-      <div class="headerText no-hl">
-        <h1>Transactions history</h1>
-        <p>Processing any pending blocks</p>
+    <div class="header">
+      <div class="headerText no-hl container">
+        <h1>Transactions</h1>
       </div>
     </div>
-    <div class="links no-hl" v-for="(item, index) in transactions" :key="index">
-      <a class="link container" :class="{ 'pending': item.pending }" @click="toHash(item.hash)">
-        <span class="amount">{{item.amount}}</span>
-        <span class="address">{{item.account}}</span>
-      </a>
+    <div class="pendingProcess">
+      <div class="pendingText container">
+        <span :class="{ 'lowOpacity': !pendings}">{{pendingText}}</span>
+        <button
+          :class="{'hidden' : pendings, 'hidden' : !isProcessing}"
+          @click="processTransactions"
+        >Accept</button>
+      </div>
     </div>
-
-    <button class="checkAll" @click="toExplorer()">Check all transactions</button>
+    <div class="linkHolder">
+      <div class="links no-hl" v-for="(item, index) in transactions" :key="index">
+        <a class="link" :class="{ 'pending': item.pending }" @click="toHash(item.hash)">
+          <span class="link-items">
+            <span class="amount">{{item.amount}}</span>
+            <span class="address">{{item.account}}</span>
+          </span>
+        </a>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -25,37 +35,44 @@ export default {
   data() {
     return {
       transactions: [],
-      address: ""
+      isProcessing: false,
+      pendings: 0,
+      errorProcessing: false
     };
   },
-  created() {
+
+  computed: {
+    pendingText() {
+      if (this.errorProcessing) return this.errorProcessing;
+
+      if (this.pendings > 0 && !this.isProcessing) {
+        return this.pendings.toString() + " pending deposits";
+      }
+
+      if (this.isProcessing) {
+        return "Processing " + this.pendings.toString() + " deposits...";
+      }
+
+      if (this.pendings === 0 && !this.isProcessing) {
+        return "No pending deposits";
+      }
+    }
+  },
+
+  beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
-    this.$bus.postMessage({
-      action: "update"
-    });
-
-    this.$bus.postMessage({
-      action: "publicAccount"
-    });
-
-    this.$bus.postMessage({
-      action: "processPending"
-    });
+    this.$bus.postMessage({ action: "update" });
+    this.$bus.postMessage({ action: "isProcessing" });
   },
 
   methods: {
-    toHash(hash) {
-      let result = "https://nanocrawler.cc/explorer/block/" + hash;
-      window.open(result, "_blank");
-    },
-
     smallerAddress(address, type) {
       let prefix = address.slice(0, 3);
-      let back = address.slice(-3);
+      let back = address.slice(-4);
       let front = "to: ";
       if (type === "receive") front = "from: ";
-      if (prefix === "xrb") front += address.slice(0, 7);
-      if (prefix === "nan") front += address.slice(0, 8);
+      if (prefix === "xrb") front += address.slice(0, 8);
+      if (prefix === "nan") front += address.slice(0, 9);
 
       return front + "..." + back;
     },
@@ -82,20 +99,26 @@ export default {
       return result;
     },
 
-    toExplorer() {
-      let result =
-        "https://nanocrawler.cc/explorer/account/" + this.address + "/history";
-      window.open(result, "_blank");
-    },
-
     bgMessages(msg) {
       if (msg.action === "update") {
         this.transactions = this.adjustTransactions(msg.data.transactions);
+        this.pendings = msg.data.total_pending;
       }
 
-      if (msg.action === "publicAccount") {
-        this.address = msg.data;
+      if (msg.action === "isProcessing") {
+        this.isProcessing = msg.data;
       }
+
+      if (msg.action === "errorProcessing") {
+        this.errorProcessing = msg.data;
+      }
+    },
+
+    processTransactions() {
+      console.log("starting processing pending");
+      this.$bus.postMessage({
+        action: "processPending"
+      });
     }
   },
   mixins: [navigation]
@@ -103,50 +126,97 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.lowOpacity {
+  opacity: 0.3;
+  cursor: default;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
+}
+
 .transactions {
   background-color: #f7f7f7 !important;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: "RubikMedium", sans-serif;
+}
+.pendingProcess {
+  color: #fff;
+  position: relative;
+  width: 100%;
+  height: 50px;
+  background-color: #1f3ead;
+  display: flex;
+  align-items: center;
+  font-family: "RubikMedium", sans-serif;
+}
+
+.linkHolder::-webkit-scrollbar {
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+}
+
+.linkHolder {
+  overflow-y: auto;
+  &::-webkit-scrollbar {
+    width: 5px;
+    background-color: #f5f5f5;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 50px;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+
+  flex: 1;
+  overflow-y: auto;
+  height: 200px;
 }
 
 .header {
-  height: 123px;
+  height: 100px;
 }
 
 .links {
-  width: 280px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 16px;
+  width: 100%;
   font-size: 12px;
   color: #222426;
-  display: block;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   width: 100%;
-  font-family: "Roboto Mono", sans-serif;
-  font-style: normal;
-  font-weight: bold;
-  font-size: 12px;
-  line-height: 15px;
-
+  cursor: pointer;
+  border-top: 2px solid #f7f7f7;
+  font-family: "RubikMedium", sans-serif;
+  .link:hover .link-items span:last-child {
+    color: #222426;
+  }
   .link {
     display: flex;
-    cursor: pointer;
+    flex: 0 0 100%;
+    background-color: #fff;
     align-items: center;
     height: 43px;
-    width: 280px;
-    background-color: #fff;
     fill-opacity: 0.2;
-    border-top: 2px solid #f7f7f7;
-    box-sizing: border-box;
-    span:last-child {
-      margin-left: auto;
-      text-align: right;
-      color: rgba(34, 36, 38, 0.3);
-    }
+    justify-content: center;
 
-    &:hover {
+    .link-items {
+      display: flex;
+      width: 230px;
       span:last-child {
-        color: rgba(34, 36, 38, 1);
+        margin-left: auto;
+        color: rgba(34, 36, 38, 0.3);
       }
+    }
+  }
+
+  .link:hover {
+    path {
+      fill-opacity: 1;
     }
   }
 
@@ -156,23 +226,34 @@ export default {
 }
 
 button {
+  visibility: visible;
+  width: auto;
+  height: auto;
   border: none;
   border-radius: 2px;
   color: #fff;
-  font-style: normal;
-  font-weight: 600;
-  line-height: 18px;
-  font-size: 14px;
-  background-color: #2f55df;
-  width: 230px;
-  height: 40px;
-  background: #2f55df;
-  border-radius: 2px;
-  margin: 0 auto;
-  display: block;
-  position: relative;
-  top: 20px;
-  outline: none;
+  font-weight: bold;
+  font-size: 12px;
+  background-color: #162b79;
+  padding: 6px 11px;
   cursor: pointer;
+  transition: background-color 0.6s ease;
+  margin-left: auto;
+  &:hover {
+    background-color: #193494;
+  }
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.pendingText {
+  display: flex;
+
+  span {
+    position: relative;
+    top: 7px;
+  }
 }
 </style>

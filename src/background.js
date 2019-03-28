@@ -17,3 +17,11 @@ function startExtension() {
 }
 
 startExtension()
+
+// if (!this.locked) {
+// 	let test = await this.getWork(
+// 		"1A66A5CEF5B149FEAE8F680ED7E32956F3B45A3D7914660265178BDED16446C8",
+// 		true
+// 	)
+// 	console.log(test)
+// }

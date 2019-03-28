@@ -143,7 +143,7 @@ p {
 .container {
   display: block;
   margin: 0 auto;
-  max-width: 230px;
+  width: 230px;
 }
 
 .header {

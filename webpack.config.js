@@ -75,6 +75,7 @@ const config = {
 		new CopyWebpackPlugin([
 			{ from: "icons", to: "icons", ignore: ["icon.xcf"] },
 			{ from: "fonts", to: "fonts" },
+			{ from: "pow", to: "pow" },
 			{
 				from: "popup/popup.html",
 				to: "popup/popup.html",
