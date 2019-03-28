@@ -7,3 +7,4 @@ package-lock.json
 
 # Dont' track ENV variables
 *.env
+*.DS_STORE
