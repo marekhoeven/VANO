@@ -11,6 +11,6 @@ Special thanks to the following repo's. You made the creation of this extension 
 - [dchest/tweetnacl-js](https://github.com/dchest/tweetnacl-js) - Cryptography Implementation
 
 ## Donate
-If you like what I've made and/or are feeling generous, you can donate to me at <3
+If you like what I've made and/or are feeling generous, you can donate to me at
 `xrb_3tfccg1pfr9k8o548jb6bj9fyyc4mmhnpepounzneobfwuq8won9enactbkk` 
 
