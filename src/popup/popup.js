@@ -1,15 +1,15 @@
-import Vue from 'vue'
-import App from './App'
+global.browser = require("webextension-polyfill")
+import Vue from "vue"
+import App from "./App"
+import router from "./router"
 
-import router from './router'
-
-global.browser = require('webextension-polyfill')
-Vue.prototype.$browser = global.browser
+Vue.prototype.$bus = chrome.runtime.connect({
+	name: "popupController"
+})
 
 /* eslint-disable no-new */
 new Vue({
-  el: '#app',
-  
-  router,
-  render: h => h(App)
+	el: "#app",
+	router,
+	render: h => h(App)
 })

@@ -1,19 +1,24 @@
 {
-  "name": "vano",
-  "description": "VANO: a NANO light-wallet browser extension",
-  "version": null,
-  "manifest_version": 2,
-  "icons": {
-    "48": "icons/icon_48.png",
-    "128": "icons/icon_128.png"
-  },
-  "browser_action": {
-    "default_title": "vano",
-    "default_popup": "popup/popup.html"
-  },
-  "background": {
-    "scripts": [
-      "background.js"
-    ]
-  }
+	"name": "vano",
+	"description": "VANO: a NANO light-wallet browser extension",
+	"version": "1.0.5",
+	"manifest_version": 2,
+	"icons": {
+		"48": "icons/icon_48.png",
+		"128": "icons/icon_128.png"
+	},
+	"browser_action": {
+		"default_title": "vano",
+		"default_popup": "popup/popup.html"
+	},
+	"content_scripts": [
+		{
+			"matches": ["https://*/*", "http://*/*"],
+			"js": ["content.js"]
+		}
+	],
+	"permissions": ["storage", "https://*/*", "http://*/*", "activeTab"],
+	"background": {
+		"scripts": ["background.js"]
+	}
 }
