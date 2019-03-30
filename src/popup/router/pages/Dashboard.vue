@@ -177,8 +177,6 @@ export default {
 .link span.pending {
   padding-left: 5px;
   font-family: "RobotoMonoMedium", sans-serif;
-  font-style: normal;
-  font-weight: bold;
   font-size: 13px;
   line-height: 17px;
   color: rgba(34, 36, 38, 0.3);

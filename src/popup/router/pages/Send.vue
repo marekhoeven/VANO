@@ -2,11 +2,11 @@
   <div class="send">
     <div class="header">
       <div class="headerText no-hl container">
-        <h1>Send</h1>
-        <p>It is hard to seperate from NANO</p>
+        <h1>{{headerTitle}}</h1>
+        <p>{{headerText}}</p>
       </div>
     </div>
-    <div class="overview no-hl">
+    <div class="overview no-hl" v-if="!confirmScreen">
       <div class="sendingAmount">
         <div class="amount">
           <span>Amount:</span>
@@ -30,9 +30,15 @@
 
       <div class="errorMessage" v-if="errorMessage">{{errorMessage}}</div>
     </div>
+    <div class="overview no-hl confirmScreen" v-else>
+      <p>You are sending</p>
+      <div class="amount">{{amount}}</div>
+      <p>to</p>
+      <div class="addres">{{to_address}}</div>
+    </div>
 
     <button class="send no-hl" @click="trySend()" v-if="!generating">
-      <span>Send NANO</span>
+      <span>{{sendText}}</span>
     </button>
     <button class="send no-hl" v-else>
       <span style="cursor: default">Generating work...</span>
@@ -54,8 +60,32 @@ export default {
       to_address: "",
       errorMessage: false,
       generating: false,
-      balance: 0
+      balance: 0,
+      confirmScreen: false,
+      isConfirm: false
     };
+  },
+  computed: {
+    headerTitle: function() {
+      if (this.confirmScreen) {
+        return "Confirm";
+      }
+      return "Send";
+    },
+
+    headerText: function() {
+      if (this.confirmScreen) {
+        return "Everything correct?";
+      }
+      return "It is hard to seperate from NANO";
+    },
+
+    sendText: function() {
+      if (this.confirmScreen) {
+        return "Confirm";
+      }
+      return "Send NANO";
+    }
   },
   watch: {
     amount() {
@@ -84,12 +114,10 @@ export default {
         this.errorMessage = msg.data;
       }
 
-      if (msg.action === "sendGenerate") {
-        this.generating = true;
-      }
-
       if (msg.action === "update") {
         this.balance = msg.data.full_balance;
+        this.generating = msg.data.isGenerating;
+        this.isConfirm = msg.data.isConfirm;
       }
     },
 
@@ -112,10 +140,17 @@ export default {
         return;
       }
 
-      this.$bus.postMessage({
-        action: "send",
-        data: { amount: this.amount, to: this.to_address.trim() }
-      });
+      if (this.isConfirm) {
+        this.$bus.postMessage({
+          action: "send",
+          data: { amount: this.amount, to: this.to_address.trim() }
+        });
+      } else {
+        this.$bus.postMessage({
+          action: "checkSend",
+          data: { amount: this.amount, to: this.to_address.trim() }
+        });
+      }
     }
   },
   mixins: [navigation]
@@ -178,7 +213,7 @@ button {
   width: 100%;
   position: absolute;
   bottom: 0;
-  height: 45px;
+  height: 50px;
   border: none;
   font-style: normal;
   font-weight: 600;
@@ -187,6 +222,9 @@ button {
   color: #ffffff;
   cursor: pointer;
   background-color: #2f55df;
+  &:hover {
+    background-color: #466eff;
+  }
   z-index: 1;
 }
 
@@ -234,6 +272,7 @@ textarea:focus::-webkit-input-placeholder {
 }
 
 .errorMessage {
+  font-family: "RubikMedium", sans-serif;
   display: flex;
   justify-content: center;
   padding-top: 10px;

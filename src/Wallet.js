@@ -27,6 +27,8 @@ export class Wallet {
 		this.isProcessing = false
 		this.successfullBlocks = []
 		this.initWorkPool = 0
+		this.sendHash = ""
+		this.confirmSend = false
 		this.deeplinkData = {} // amount in raw, address
 	}
 	// BACKGROUND.JS STARTUP & OPENVIEW FUNCTIONS
@@ -212,18 +214,28 @@ export class Wallet {
 			}
 
 			if (!isSend && account === this.publicAccount) {
-				// RECEIVED TO ME! :D"
+				// RECEIVED TO ME!
 				this.frontier = data.hash
 				this.representative = data.block.representative
-				if (
-					new BigNumber(data.block.balance).isEqualTo(
-						new BigNumber(this.balance)
-					)
-				) {
-					this.sendToView("rep_changed", this.representative)
-				}
-
 				this.balance = new BigNumber(data.block.balance)
+
+				// check if still in pendingBlocks otherwise add to history
+				this.pendingBlocks.forEach((item, index) => {
+					if (data.block.link === item.hash) {
+						let amount = this.pendingBlocks[index].amount
+						let from = this.pendingBlocks[index].account
+						let hash = this.pendingBlocks[index].hash
+						this.pendingBlocks.splice(index, 1)
+
+						this.history.unshift({
+							amount: amount,
+							account: from,
+							hash: hash,
+							type: "receive"
+						})
+					}
+				})
+
 				this.checkIcon()
 				this.updateView()
 			}
@@ -234,6 +246,8 @@ export class Wallet {
 	// ==================================================================
 	async getWork(hash, useServer = false) {
 		console.log("Generating work for", hash)
+		this.isGenerating = true
+		this.updateView()
 		// Always returns an array: [work, hash]
 		let hashWork = hash
 		// If new account
@@ -262,6 +276,8 @@ export class Wallet {
 			)
 
 			if (gotWorkResponse.ok) {
+				this.isGenerating = false
+				this.updateView()
 				return [gotWorkResponse.data.data.work, hashWork] // [work, hash]
 			}
 		}
@@ -279,9 +295,12 @@ export class Wallet {
 		}
 
 		if (localwork.ok) {
+			this.isGenerating = false
+			this.updateView()
 			return [localwork.data.work, hashWork]
 		}
-
+		this.isGenerating = false
+		this.updateView()
 		return false
 	}
 
@@ -311,6 +330,46 @@ export class Wallet {
 	// INTERACTING WITH THE NANO NETWORK:
 	// SIGNING BLOCKS, SEND, RECEIVE, CHANGE ETC.
 	// ==================================================================
+	async send(raw_data) {
+		if (!this.checkSend(raw_data)) return
+		this.isSending = true
+		this.updateView()
+
+		try {
+			const work = (await this.getWork(this.frontier, false)) || false
+			if (!work) {
+				console.log("1/ Error generating PoW")
+				this.isSending = false
+				this.toPage("failed")
+				return
+			}
+
+			let block = this.newSendBlock({ data: raw_data }, work[0])
+			this.pushBlock(block)
+				.then(response => {
+					if (response.hash) {
+						this.sendHash = response.hash
+						this.toPage("success")
+						setTimeout(() => {
+							this.isSending = false
+						}, 4000)
+					} else {
+						console.log("2/ Pushblock error", response)
+						this.toPage("failed")
+						this.isSending = false
+					}
+				})
+				.catch(err => {
+					console.log("2/ Pushblock error", err)
+					this.toPage("failed")
+					this.isSending = false
+				})
+		} catch (err) {
+			console.log("3/ Sending error:", err)
+			this.toPage("failed")
+			this.isSending = false
+		}
+	}
 
 	async processPending() {
 		if (this.isProcessing || this.locked || !this.pendingBlocks.length) {
@@ -400,6 +459,34 @@ export class Wallet {
 			link: blockinfo.hash
 		}
 	}
+
+	newSendBlock(blockinfo, hasWork) {
+		let amount = util.mnanoToRaw(new BigNumber(blockinfo.data.amount))
+		let to = blockinfo.data.to
+		let newBalance = new BigNumber(this.balance).minus(new BigNumber(amount))
+		let newBalancePadded = this.getPaddedBalance(newBalance)
+		let signature = util.signSendBlock(
+			this.publicAccount,
+			this.frontier,
+			this.representative,
+			newBalancePadded,
+			to,
+			this.accountPair.secretKey
+		)
+
+		return {
+			type: "state",
+			account: this.publicAccount,
+			previous: this.frontier, //hex format
+			representative: this.representative,
+			destination: to,
+			balance: newBalance.toString(),
+			work: hasWork,
+			signature: signature,
+			linkHEX: util.getAccountPublicKey(to),
+			link: to
+		}
+	}
 	// TODO: SEND BLOCK
 	// TODO: CHANGE BLOCK
 
@@ -416,6 +503,8 @@ export class Wallet {
 			if (action === "update") this.updateView()
 			if (action === "isLocked") this.sendToView("isLocked", this.locked)
 			if (action === "processPending") this.startProcessPending()
+			if (action === "checkSend") this.checkSend(data)
+			if (action === "confirmSend") this.send(data)
 		}
 	}
 
@@ -491,6 +580,39 @@ export class Wallet {
 		this.setupWallet(seed)
 	}
 
+	checkSend(data) {
+		let amount = new BigNumber(util.mnanoToRaw(data.amount))
+		let to = data.to
+		let errorMessage = false
+		if (amount.e < 0) errorMessage = "Your nano-unit is too small to send"
+		if (amount.isNaN()) errorMessage = "Amount is not a valid number"
+		if (amount.isLessThanOrEqualTo(0))
+			errorMessage = "You can't send zero or negative NANO"
+		if (/^\d+\.\d+$/.test(amount.toString()))
+			errorMessage = "Cannot send smaller than raw"
+		if (amount.isGreaterThan(this.balance))
+			errorMessage = "Not enough NANO in this wallet"
+		if (!util.checksumAccount(to)) errorMessage = "Invalid address"
+		if (to === this.publicAccount) errorMessage = "Can't send to yourself"
+		if (this.isViewProcessing)
+			errorMessage = "Please wait untill all pending blocks are accepted.."
+		if (
+			this.frontier ===
+			"0000000000000000000000000000000000000000000000000000000000000000"
+		) {
+			errorMessage = "This account has nothing received yet"
+		}
+		if (this.isSending) {
+			errorMessage = "Cooling down... try again in a few seconds"
+		}
+		if (errorMessage) {
+			this.sendToView("errorMessage", errorMessage)
+			return false
+		}
+
+		this.confirmSend = true
+	}
+
 	updateView() {
 		let result = []
 		this.pendingBlocks.forEach(element => {
@@ -525,7 +647,11 @@ export class Wallet {
 			full_balance,
 			frontier: this.frontier,
 			publicAccount: this.publicAccount,
-			isProcessing: this.isViewProcessing
+			isProcessing: this.isViewProcessing,
+			representative: this.representative,
+			sendHash: this.sendHash,
+			isGenerating: this.isGenerating,
+			isConfirm: this.confirmSend
 		}
 		this.sendToView("update", info)
 	}

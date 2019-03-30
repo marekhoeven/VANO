@@ -135,7 +135,7 @@ export default {
       let prefix = address.slice(0, 3);
       let back = address.slice(-4);
       let front = "to: ";
-      if (type === "receive") front = "from: ";
+      if (type === "receive" || type === "pending") front = "from: ";
       if (prefix === "xrb") front += address.slice(0, 8);
       if (prefix === "nan") front += address.slice(0, 9);
 
@@ -173,6 +173,17 @@ export default {
         this.isProcessing = msg.data.isProcessing;
         if (this.transactions.length > 0 || this.pendings > 0) {
           this.noTX = false;
+        }
+
+        if (this.clicked) {
+          this.$refs["link" + this.clicked][0].classList.remove("bigger");
+          this.$refs["moreInfo" + this.clicked][0].classList.remove(
+            "showBlock"
+          );
+          this.$refs["moreInfoShown" + this.clicked][0].classList.remove(
+            "moreInfoShown"
+          );
+          this.clicked = false;
         }
       }
 
@@ -361,6 +372,8 @@ button {
   span {
     position: relative;
     top: 7px;
+    font-family: "RubikMedium", sans-serif;
+    font-size: 12px;
   }
 }
 

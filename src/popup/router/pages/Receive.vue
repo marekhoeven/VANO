@@ -55,7 +55,7 @@ export default {
       setTimeout(() => {
         this.copied = "Copy address";
         this.clicked = false;
-      }, 1000);
+      }, 800);
     }
   },
   mixins: [navigation]
@@ -131,5 +131,6 @@ button {
 
 .green {
   background-color: #4bb993 !important;
+  transition: background-color 0.01 ease;
 }
 </style>

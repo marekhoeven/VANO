@@ -39,7 +39,7 @@ export default {
   },
   beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
-    this.$bus.postMessage({ action: "sendSuccess" });
+    this.$bus.postMessage({ action: "update" });
   },
   methods: {
     goToTab() {
@@ -48,8 +48,8 @@ export default {
     },
 
     bgMessages(msg) {
-      if (msg.action === "success") {
-        this.hash = msg.data.hash;
+      if (msg.action === "update") {
+        this.hash = msg.data.sendHash;
       }
     }
   },
@@ -88,7 +88,7 @@ p {
   padding: 0;
   margin: 0 auto;
   padding: 5px 0;
-  font-family: "Roboto Mono", sans-serif;
+  font-family: "RobotoMonoMedium", sans-serif;
   font-style: normal;
   font-weight: bold;
   font-size: 12px;
@@ -113,12 +113,11 @@ p {
 .goBack {
   position: relative;
   top: 20px;
-  font-style: italic;
-  font-weight: normal;
   font-size: 12px;
   line-height: 16px;
   color: #ffffff;
   cursor: pointer;
   text-decoration: underline;
+  font-family: "RubikMedium", sans-serif;
 }
 </style>

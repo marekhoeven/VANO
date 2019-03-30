@@ -1,14 +1,14 @@
 <template>
   <div class="representative">
-    <div class="header container">
-      <div class="headerText no-hl">
+    <div class="header">
+      <div class="headerText no-hl container">
         <h1>Representative</h1>
         <p>Change your representative node</p>
       </div>
     </div>
-    <div class="address container">
-      <div>Your current representative:</div>
-      <span ref="currRep">{{representative}}</span>
+    <div class="address">
+      <div class="container">Your current representative:</div>
+      <span ref="currRep" class="container">{{representative}}</span>
     </div>
 
     <div class="overview">
@@ -62,24 +62,22 @@ export default {
   },
   methods: {
     bgMessages(msg) {
-      if (msg.action === "representative") {
-        this.representative = msg.data;
-      }
-      if (msg.action === "rep_changed") {
-        this.changing = false;
-        this.succesChange = true;
-        this.new_representative = "";
-        this.representative = msg.data;
-        this.$refs.currRep.classList.add("success");
-
-        setTimeout(() => {
-          this.succesChange = false;
-          this.$refs.currRep.classList.remove("success");
-          this.$refs.changeButton.classList.remove("successChange");
-        }, 4000);
-      }
       if (msg.action === "update") {
-        this.frontier = msg.data.frontier;
+        this.representative = msg.data.representative;
+
+        if (this.representative !== msg.data.representative) {
+          this.changing = false;
+          this.succesChange = true;
+          this.new_representative = "";
+          this.representative = msg.data.representative;
+          this.$refs.currRep.classList.add("success");
+
+          setTimeout(() => {
+            this.succesChange = false;
+            this.$refs.currRep.classList.remove("success");
+            this.$refs.changeButton.classList.remove("successChange");
+          }, 4000);
+        }
       }
 
       if (msg.action === "errorMessage") {
@@ -124,10 +122,6 @@ export default {
   created() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({
-      action: "representative"
-    });
-
-    this.$bus.postMessage({
       action: "update"
     });
   },
@@ -169,6 +163,7 @@ button.successChange {
 }
 
 .address {
+  font-family: "RubikMedium", sans-serif;
   background-color: #fff;
   div {
     padding-top: 20px;
@@ -182,7 +177,7 @@ button.successChange {
   span {
     padding-top: 10px;
     padding-bottom: 20px;
-    font-family: "Roboto Mono", sans-serif;
+    font-family: "RobotoMonoMedium", sans-serif;
     font-style: normal;
     font-weight: bold;
     font-size: 11px;
@@ -204,7 +199,7 @@ button {
   width: 100%;
   position: absolute;
   bottom: 0;
-  height: 45px;
+  height: 50px;
   border: none;
   font-style: normal;
   font-weight: 600;
@@ -213,6 +208,9 @@ button {
   color: #ffffff;
   cursor: pointer;
   background-color: #2f55df;
+  &:hover {
+    background-color: #466eff;
+  }
 }
 
 textarea {
