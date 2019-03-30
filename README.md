@@ -2,8 +2,9 @@
 
 VANO: a NANO light-wallet browser extension
 
+<center>
 ![Screenshot of the dashboard](https://github.com/marekhoeven/VANO/blob/master/dashboard.png)
-
+</center>
 ## Acknowledgements
 
 Special thanks to the following repo's. You made the creation of this extension a lot easier. Thank you!
