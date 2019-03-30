@@ -3,6 +3,14 @@ A NANO light-wallet browser extension
 
 ![Dashboard](https://github.com/marekhoeven/VANO/blob/master/dashboard.png)
 
+## Todo
+
+- Add addressbook (alias system?)
+- Optimalisation of JS functions
+- Improve some shitty CSS (on components and globally)
+- Set user-option for minimum receive amount
+- Perhaps select what pendings to accept?
+
 
 ## Acknowledgements
 
@@ -14,11 +22,6 @@ Special thanks to the following repo's. You made the creation of this extension 
 - [jaimehgb/RaiBlocksWebAssemblyPoW](https://github.com/jaimehgb/RaiBlocksWebAssemblyPoW) - CPU PoW Implementation
 - [dcposch/blakejs](https://github.com/dcposch/blakejs) - Blake2b Implementation
 - [dchest/tweetnacl-js](https://github.com/dchest/tweetnacl-js) - Cryptography Implementation
-
-## Todo
-
-- Improve some shitty CSS (on components and globally)
-- Set user-option for minimum receive amount
 
 ## Donate
 
