@@ -15,6 +15,11 @@ Special thanks to the following repo's. You made the creation of this extension 
 - [dcposch/blakejs](https://github.com/dcposch/blakejs) - Blake2b Implementation
 - [dchest/tweetnacl-js](https://github.com/dchest/tweetnacl-js) - Cryptography Implementation
 
+## Todo
+
+- Improve some shitty CSS (on components and globally)
+- Set user-option for minimum receive amount
+
 ## Donate
 
 If you like what I've made and/or are feeling generous, you can donate to me at
