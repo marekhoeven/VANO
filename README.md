@@ -1,8 +1,6 @@
 # VANO
-
-VANO: a NANO light-wallet browser extension
-
-<p align="center">
+<p>A NANO light-wallet browser extension</p>
+ <p align="center">
   <img  src="https://github.com/marekhoeven/VANO/blob/master/dashboard.png">
 </p>
 
