@@ -1,21 +1,23 @@
 <template>
   <div class="receive">
-    <div class="header container">
-      <div class="headerText no-hl">
+    <div class="header">
+      <div class="headerText no-hl container">
         <h1>Receive</h1>
         <p>Having more NANO is a happier life</p>
       </div>
     </div>
-    <div class="address container">
-      <div>Your address:</div>
-      <span>{{address}}</span>
+    <div class="address">
+      <div class="container">
+        <div>Your address:</div>
+        <span>{{address}}</span>
+      </div>
     </div>
 
     <div class="receiveQR">
       <img :src="QRimg" alt>
     </div>
 
-    <button class="copy" @click="copyAddress">{{copied}}</button>
+    <button class="copy" :class="{'green': clicked}" @click="copyAddress">{{copied}}</button>
   </div>
 </template>
 
@@ -35,15 +37,13 @@ export default {
   },
   async created() {
     this.$bus.onMessage.addListener(this.bgMessages);
-    this.$bus.postMessage({
-      action: "publicAccount"
-    });
+    this.$bus.postMessage({ action: "update" });
   },
 
   methods: {
     async bgMessages(msg) {
-      if (msg.action === "publicAccount") {
-        this.address = msg.data;
+      if (msg.action === "update") {
+        this.address = msg.data.publicAccount;
         let qrdata = await QRCode.toDataURL(this.address);
         this.QRimg = qrdata;
       }
@@ -74,7 +74,8 @@ export default {
 
 .address {
   background-color: #fff;
-  div {
+  font-family: "RubikMedium", sans-serif;
+  div div {
     padding-top: 20px;
     font-style: normal;
     font-weight: 500;
@@ -86,11 +87,11 @@ export default {
   span {
     padding-top: 10px;
     padding-bottom: 20px;
-    font-family: "Roboto Mono", sans-serif;
+    font-family: "RobotoMonoMedium", sans-serif;
     font-style: normal;
     font-weight: bold;
     font-size: 11px;
-    line-height: 14px;
+    line-height: 16px;
     color: #222426;
     display: block;
     white-space: pre-wrap;
@@ -99,7 +100,7 @@ export default {
 }
 
 .receiveQR {
-  padding-top: 17px;
+  padding-top: 15px;
   display: flex;
   justify-content: center;
 }
@@ -113,7 +114,7 @@ button {
   width: 100%;
   position: absolute;
   bottom: 0;
-  height: 45px;
+  height: 50px;
   border: none;
   font-style: normal;
   font-weight: 600;
@@ -122,5 +123,13 @@ button {
   color: #ffffff;
   cursor: pointer;
   background-color: #2f55df;
+
+  &:hover {
+    background-color: #466eff;
+  }
+}
+
+.green {
+  background-color: #4bb993 !important;
 }
 </style>

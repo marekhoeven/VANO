@@ -18,7 +18,7 @@
     </svg>
 
     <h1>Success</h1>
-    <p>Your transaction was successfull</p>
+    <p>Your transaction was successful</p>
     <div class="info">
       <div class="hashLabel">Hash:</div>
       <div class="hash" @click="goToTab()">{{hash}}</div>

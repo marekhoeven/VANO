@@ -8,18 +8,36 @@
     <div class="pendingProcess">
       <div class="pendingText container">
         <span :class="{ 'lowOpacity': !pendings}">{{pendingText}}</span>
-        <button
-          :class="{'hidden' : pendings, 'hidden' : !isProcessing}"
-          @click="processTransactions"
-        >Accept</button>
+        <button :class="{'hidden' : !pendings || isProcessing}" @click="processTransactions">Accept</button>
       </div>
     </div>
     <div class="linkHolder">
+      <p v-if="noTX">No transactions</p>
       <div class="links no-hl" v-for="(item, index) in transactions" :key="index">
-        <a class="link" :class="{ 'pending': item.pending }" @click="toHash(item.hash)">
+        <a
+          class="link"
+          :class="{'pending': item.type === 'pending'}"
+          @click="getInfo(index, $event)"
+          :ref="'link'+index"
+        >
           <span class="link-items">
-            <span class="amount">{{item.amount}}</span>
-            <span class="address">{{item.account}}</span>
+            <span class="info">
+              <span class="amount">{{item.amount}}</span>
+              <span class="address" :ref="'moreInfoShown'+index">{{item.account}}</span>
+            </span>
+
+            <span class="moreInfo" :ref="'moreInfo'+index">
+              <span
+                class="details"
+                :ref="'details'+index"
+                @click="goToExplorer(index, item.hash)"
+              >View details</span>
+              <span
+                class="copy"
+                :ref="'copy'+index"
+                @click="copyAddress(index, item.source)"
+              >Copy address</span>
+            </span>
           </span>
         </a>
       </div>
@@ -29,6 +47,7 @@
 
 <script>
 import navigation from "../navigation.js";
+import { setTimeout } from "timers";
 
 export default {
   name: "Transactions",
@@ -37,7 +56,9 @@ export default {
       transactions: [],
       isProcessing: false,
       pendings: 0,
-      errorProcessing: false
+      errorProcessing: false,
+      clicked: false,
+      noTX: true
     };
   },
 
@@ -45,12 +66,18 @@ export default {
     pendingText() {
       if (this.errorProcessing) return this.errorProcessing;
 
-      if (this.pendings > 0 && !this.isProcessing) {
-        return this.pendings.toString() + " pending deposits";
+      if (this.isProcessing) {
+        if (this.pendings == 1) {
+          return "Processing 1 deposit...";
+        }
+        return "Processing " + this.pendings.toString() + " deposits...";
       }
 
-      if (this.isProcessing) {
-        return "Processing " + this.pendings.toString() + " deposits...";
+      if (this.pendings > 0 && !this.isProcessing) {
+        if (this.pendings == 1) {
+          return "1 pending deposit";
+        }
+        return this.pendings.toString() + " pending deposits";
       }
 
       if (this.pendings === 0 && !this.isProcessing) {
@@ -62,10 +89,48 @@ export default {
   beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({ action: "update" });
-    this.$bus.postMessage({ action: "isProcessing" });
   },
 
   methods: {
+    getInfo(id, el) {
+      if (
+        this.clicked === id.toString() &&
+        el.target !== this.$refs["copy" + id][0]
+      ) {
+        this.clicked = false;
+        this.$refs["link" + id][0].classList.remove("bigger");
+        this.$refs["moreInfo" + id][0].classList.remove("showBlock");
+        this.$refs["moreInfoShown" + id][0].classList.remove("moreInfoShown");
+        return;
+      }
+
+      if (this.clicked !== false) {
+        this.$refs["link" + this.clicked][0].classList.remove("bigger");
+        this.$refs["moreInfo" + this.clicked][0].classList.remove("showBlock");
+        this.$refs["moreInfoShown" + this.clicked][0].classList.remove(
+          "moreInfoShown"
+        );
+      }
+
+      this.clicked = id.toString();
+      this.$refs["link" + id][0].classList.add("bigger");
+      this.$refs["moreInfo" + id][0].classList.add("showBlock");
+      this.$refs["moreInfoShown" + id][0].classList.add("moreInfoShown");
+    },
+
+    copyAddress(id, source) {
+      this.$copyText(source);
+      this.$refs["copy" + id][0].classList.add("green");
+      setTimeout(() => {
+        this.$refs["copy" + id][0].classList.remove("green");
+      }, 300);
+    },
+
+    goToExplorer(id, hash) {
+      let result = "https://nanocrawler.cc/explorer/block/" + hash;
+      window.open(result, "_blank");
+    },
+
     smallerAddress(address, type) {
       let prefix = address.slice(0, 3);
       let back = address.slice(-4);
@@ -82,7 +147,7 @@ export default {
 
       overview.forEach(element => {
         let pre_amount = "- ";
-        if (element.type === "receive") {
+        if (element.type === "receive" || element.type === "pending") {
           pre_amount = "+ ";
         }
         let new_amount = pre_amount + element.amount;
@@ -90,7 +155,9 @@ export default {
           amount: new_amount.slice(0, 9),
           pending: element.pending,
           account: this.smallerAddress(element.account, element.type),
-          hash: element.hash
+          source: element.account,
+          hash: element.hash,
+          type: element.type
         };
 
         result.push(item);
@@ -103,10 +170,10 @@ export default {
       if (msg.action === "update") {
         this.transactions = this.adjustTransactions(msg.data.transactions);
         this.pendings = msg.data.total_pending;
-      }
-
-      if (msg.action === "isProcessing") {
-        this.isProcessing = msg.data;
+        this.isProcessing = msg.data.isProcessing;
+        if (this.transactions.length > 0 || this.pendings > 0) {
+          this.noTX = false;
+        }
       }
 
       if (msg.action === "errorProcessing") {
@@ -115,10 +182,7 @@ export default {
     },
 
     processTransactions() {
-      console.log("starting processing pending");
-      this.$bus.postMessage({
-        action: "processPending"
-      });
+      this.$bus.postMessage({ action: "processPending" });
     }
   },
   mixins: [navigation]
@@ -126,6 +190,16 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.linkHolder p {
+  color: rgba(34, 36, 38, 0.2);
+  font-size: 16px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 90px;
+}
+
 .lowOpacity {
   opacity: 0.3;
   cursor: default;
@@ -162,14 +236,17 @@ h1 {
 .linkHolder {
   overflow-y: auto;
   &::-webkit-scrollbar {
-    width: 5px;
-    background-color: #f5f5f5;
+    width: 3px;
+    background-color: transparent;
   }
 
   &::-webkit-scrollbar-thumb {
-    border-radius: 50px;
     box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  &::-webkit-scrollbar * {
+    background: transparent;
   }
 
   flex: 1;
@@ -188,41 +265,68 @@ h1 {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  width: 100%;
   cursor: pointer;
   border-top: 2px solid #f7f7f7;
   font-family: "RubikMedium", sans-serif;
-  .link:hover .link-items span:last-child {
+  .link:hover .link-items .info span:last-child {
     color: #222426;
   }
+
   .link {
     display: flex;
     flex: 0 0 100%;
     background-color: #fff;
-    align-items: center;
+    align-items: baseline;
     height: 43px;
-    fill-opacity: 0.2;
     justify-content: center;
+    transition: height 0.5s ease;
 
-    .link-items {
+    .link-items .info {
       display: flex;
+      margin-top: 16px;
       width: 230px;
       span:last-child {
         margin-left: auto;
         color: rgba(34, 36, 38, 0.3);
       }
     }
-  }
 
-  .link:hover {
-    path {
-      fill-opacity: 1;
+    .link-items .moreInfo {
+      display: flex;
+      visibility: hidden;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity 0.4s ease-in;
+      span.details {
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+
+      span.copy {
+        margin-left: auto;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .link-items .showBlock {
+      visibility: visible;
+      opacity: 1;
     }
   }
+}
 
-  .pending {
-    color: rgba(34, 36, 38, 0.3);
-  }
+.links:first-child,
+.pending:first-child {
+  border-top: none !important;
+}
+
+.pending {
+  background-color: #f3f3f3 !important;
+  color: rgba(34, 36, 38, 0.3);
 }
 
 button {
@@ -248,12 +352,34 @@ button {
   visibility: hidden;
 }
 
+.dontShow {
+  display: none !important;
+}
+
 .pendingText {
   display: flex;
-
   span {
     position: relative;
     top: 7px;
   }
+}
+
+.bigger {
+  height: 65px !important;
+  opacity: 1;
+  background-color: #2f55df !important;
+  color: #fff !important;
+
+  .link-items .info {
+    opacity: 0.4;
+  }
+}
+
+.green {
+  color: #54d3a7;
+}
+
+.moreInfoShown {
+  color: #fff !important;
 }
 </style>

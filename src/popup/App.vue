@@ -151,7 +151,7 @@ p {
   display: flex;
   align-items: flex-end;
   height: 160px;
-
+  font-family: "RubikMedium", sans-serif;
   .headerText {
     p {
       padding-bottom: 10px;

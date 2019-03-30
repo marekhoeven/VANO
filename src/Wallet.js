@@ -16,6 +16,7 @@ export class Wallet {
 		this.port = false
 		this.locked = true
 		this.openWalletView = false
+		this.isViewProcessing = false
 
 		this.serverConnection = false
 		this.newTransactions$ = new BehaviorSubject(null)
@@ -88,7 +89,6 @@ export class Wallet {
 		this.locked = false
 		this.checkIcon()
 		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
-		this.setupWorkPool()
 	}
 
 	async setupWalletInfo(data) {
@@ -97,8 +97,23 @@ export class Wallet {
 		this.frontier = data.frontier
 		this.representative = data.representative
 		this.history = data.history
-		this.pending = data.pending
+		this.pendingBlocks = this.setPendingBlock(data.pending)
 		this.subscribeTransactions()
+	}
+
+	setPendingBlock(data) {
+		if (!Object.keys(data).length) return []
+		let result = []
+		for (var key in data) {
+			if (data.hasOwnProperty(key)) {
+				result.push({
+					amount: data[key].amount,
+					account: data[key].source,
+					hash: key
+				})
+			}
+		}
+		return result
 	}
 
 	setSocket() {
@@ -168,24 +183,14 @@ export class Wallet {
 				link === this.publicAccount
 			) {
 				// SEND SOMETHING TO ME
-				let block = {
-					type: "receive",
+				this.pendingBlocks.unshift({
 					amount: data.amount,
 					account: account,
-					hash: data.hash,
-					pending: true
-				}
-
-				let alreadyInPending = false
-				this.pending.forEach((item, index) => {
-					if (item.hash === data.hash) {
-						alreadyInPending = true
-					}
+					hash: data.hash
 				})
 
-				if (!alreadyInPending) this.pending.push(block)
 				this.checkIcon()
-				this.update()
+				this.updateView()
 			}
 
 			if (
@@ -200,16 +205,14 @@ export class Wallet {
 				this.history.unshift({
 					amount: data.amount,
 					account: data.block.link_as_account,
-					pending: false,
 					hash: data.hash,
 					type: "send"
 				})
-
-				this.update()
+				this.updateView()
 			}
 
 			if (!isSend && account === this.publicAccount) {
-				// RECEIVED TO ME
+				// RECEIVED TO ME! :D"
 				this.frontier = data.hash
 				this.representative = data.block.representative
 				if (
@@ -222,7 +225,7 @@ export class Wallet {
 
 				this.balance = new BigNumber(data.block.balance)
 				this.checkIcon()
-				this.update()
+				this.updateView()
 			}
 		})
 	}
@@ -238,17 +241,17 @@ export class Wallet {
 			hash ===
 			"0000000000000000000000000000000000000000000000000000000000000000"
 		) {
-			hashWork = getAccountPublicKey(this.publicAccount)
+			hashWork = util.getAccountPublicKey(this.publicAccount)
 		}
 
 		// Check for local cached work
-		if (this.workPool && this.workPool[hashWork]) {
-			console.log("Locally found work!")
-			let work = this.workPool[hashWork]
-			delete this.workPool[hashWork]
-			console.log("workpool")
-			return [work, hashWork]
-		}
+		// if (this.workPool && this.workPool[hashWork]) {
+		// 	console.log("Locally found work!")
+		// 	let work = this.workPool[hashWork]
+		// 	delete this.workPool[hashWork]
+		// 	console.log("workpool")
+		// 	return [work, hashWork]
+		// }
 
 		if (useServer) {
 			let gotWorkResponse = await util.getResponseFromAwait(
@@ -267,7 +270,7 @@ export class Wallet {
 		console.log("Using local work...")
 
 		let localwork = false
-		if (!this.isWebGL2Supported() && this.hasDedicatedGPU()) {
+		if (this.isWebGL2Supported() && this.hasDedicatedGPU()) {
 			console.log("Using WEBGL")
 			localwork = await util.getResponseFromAwait(this.webgl2POW(hashWork))
 		} else {
@@ -309,8 +312,94 @@ export class Wallet {
 	// SIGNING BLOCKS, SEND, RECEIVE, CHANGE ETC.
 	// ==================================================================
 
-	// TODO: PROCESSING BLOCKS
-	// TODO: PENDING BLOCK
+	async processPending() {
+		if (this.isProcessing || this.locked || !this.pendingBlocks.length) {
+			this.isViewProcessing = false
+			this.updateView()
+			return
+		}
+
+		this.isProcessing = true
+		const nextBlock = this.pendingBlocks[0]
+		if (this.successfullBlocks.find(b => b.hash == nextBlock.hash)) {
+			console.log("Already found in successfullBlocks..retry")
+			return setTimeout(() => this.processPending(), 1500)
+		}
+
+		const work = (await this.getWork(this.frontier, false)) || false
+
+		if (!work) {
+			console.log("1/ Error generating PoW")
+			this.isViewProcessing = false
+			this.updateView()
+			return
+		}
+
+		let block = this.newOpenBlock(nextBlock, work[0])
+		this.pushBlock(block)
+			.then(response => {
+				if (response) {
+					if (this.successfullBlocks.length >= 15)
+						this.successfullBlocks.shift()
+					this.successfullBlocks.push(nextBlock.hash)
+
+					let to_history = this.pendingBlocks.shift()
+					this.history.unshift({
+						type: "receive",
+						amount: to_history.amount,
+						account: to_history.account,
+						hash: to_history.hash
+					})
+
+					this.isProcessing = false
+					if (!this.pendingBlocks.length) {
+						this.isViewProcessing = false
+						this.updateView()
+					} else {
+						setTimeout(() => this.processPending(), 1500)
+					}
+				} else {
+					console.log("2/ Error on server-side node")
+					this.isViewProcessing = false
+					this.updateView()
+					return
+				}
+			})
+			.catch(err => {
+				console.log("3/ Error on server-side node")
+				this.isViewProcessing = false
+				this.updateView()
+				return
+			})
+	}
+
+	newOpenBlock(blockinfo, hasWork) {
+		let amount = new BigNumber(blockinfo.amount)
+		let newBalance = this.balance.plus(new BigNumber(amount))
+		let newBalancePadded = this.getPaddedBalance(newBalance)
+
+		let signature = util.signOpenBlock(
+			this.publicAccount,
+			this.frontier,
+			blockinfo.hash,
+			newBalancePadded,
+			this.representative,
+			this.accountPair.secretKey
+		)
+
+		return {
+			type: "state",
+			account: this.publicAccount,
+			previous: this.frontier, //hex format
+			representative: this.representative,
+			destination: this.publicAccount,
+			balance: newBalance,
+			work: hasWork,
+			signature: signature,
+			linkHEX: blockinfo.hash,
+			link: blockinfo.hash
+		}
+	}
 	// TODO: SEND BLOCK
 	// TODO: CHANGE BLOCK
 
@@ -324,29 +413,28 @@ export class Wallet {
 			if (action === "toPage") this.toPage(data)
 			if (action === "import") this.checkImport(data)
 			if (action === "unlock") this.unlock(data)
-			if (action === "update") this.update()
+			if (action === "update") this.updateView()
 			if (action === "isLocked") this.sendToView("isLocked", this.locked)
-			if (action === "isProcessing")
-				this.sendToView("isProcessing", this.isProcessing)
 			if (action === "processPending") this.startProcessPending()
 		}
 	}
 
 	startProcessPending() {
-		if (this.isProcessing) {
-			this.update()
+		if (this.isProcessing || this.isViewProcessing) {
+			this.updateView()
 			return console.log("Already processing")
 		}
-		if (this.pending.length <= 0) {
-			this.update()
+		if (this.pendingBlocks.length <= 0) {
+			this.updateView()
 			return console.log("Nothing to process")
 		}
 		if (this.isSending || this.isChangingRep) {
 			this.sendToView("errorProcessing", "Already sending, try again")
-			return console.log("Already sending")
+			return console.log("Already sending something")
 		}
-
-		console.log("process pending gogogo")
+		this.isViewProcessing = true
+		this.updateView()
+		this.processPending()
 	}
 
 	toPage(to) {
@@ -403,15 +491,24 @@ export class Wallet {
 		this.setupWallet(seed)
 	}
 
-	update() {
+	updateView() {
 		let result = []
+		this.pendingBlocks.forEach(element => {
+			let block = {
+				type: "pending",
+				amount: util.rawToMnano(element.amount).toString(),
+				account: element.account,
+				hash: element.hash
+			}
+			result.push(block)
+		})
+
 		this.history.forEach(element => {
 			let block = {
 				type: element.type,
 				amount: util.rawToMnano(element.amount).toString(),
 				account: element.account,
-				hash: element.hash,
-				pending: false
+				hash: element.hash
 			}
 			result.push(block)
 		})
@@ -423,13 +520,13 @@ export class Wallet {
 		}
 		let info = {
 			balance: prep_balance,
-			total_pending: this.pending.length || 0,
+			total_pending: this.pendingBlocks.length || 0,
 			transactions: result,
 			full_balance,
 			frontier: this.frontier,
-			publicAccount: this.publicAccount
+			publicAccount: this.publicAccount,
+			isProcessing: this.isViewProcessing
 		}
-
 		this.sendToView("update", info)
 	}
 
@@ -459,14 +556,15 @@ export class Wallet {
 	}
 
 	checkIcon() {
-		if (this.locked) {
+		if (this.locked && this.seed) {
 			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
 			return
 		}
-		if (this.pending.length > 0) {
+		if (this.pendingBlocks.length > 0) {
 			chrome.browserAction.setIcon({ path: "/icons/icon_128_pending.png" })
 			return
 		}
+
 		chrome.browserAction.setIcon({ path: "/icons/icon_128.png" })
 	}
 
@@ -544,8 +642,26 @@ export class Wallet {
 		}
 	}
 
-	randomKey(obj) {
-		var keys = Object.keys(obj)
-		return keys[Math.floor(Math.random() * keys.length)]
+	pushBlock(data) {
+		return new Promise((resolved, rejected) => {
+			this.sendAPIRequest("pushBlock", data)
+				.then(response => {
+					resolved(response.data.result)
+				})
+				.catch(err => {
+					console.log("Receive ERROR", err)
+					rejected()
+				})
+		})
+	}
+
+	getPaddedBalance(rawAmount) {
+		let paddedAmount = rawAmount.toString(16)
+		while (paddedAmount.length < 32) paddedAmount = "0" + paddedAmount
+		return paddedAmount.toUpperCase()
+	}
+
+	offlineServer(err) {
+		console.log(err)
 	}
 }

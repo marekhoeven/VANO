@@ -1,7 +1,7 @@
 <template>
   <div class="send">
-    <div class="header container">
-      <div class="headerText no-hl">
+    <div class="header">
+      <div class="headerText no-hl container">
         <h1>Send</h1>
         <p>It is hard to seperate from NANO</p>
       </div>
@@ -138,7 +138,7 @@ export default {
     display: flex;
     flex-direction: column;
     padding: 15px 25px 0 25px;
-
+    font-family: "RubikMedium", sans-serif;
     span {
       font-style: normal;
       font-weight: 500;
@@ -153,7 +153,7 @@ export default {
       padding: 10px 0;
       border: none;
       background-color: #fff;
-      font-family: "Roboto Mono", sans-serif;
+      font-family: "RobotoMonoMedium", sans-serif;
       font-style: normal;
       font-weight: bold;
       font-size: 24px;
@@ -161,7 +161,7 @@ export default {
       width: 100%;
 
       &::placeholder {
-        font-family: "Roboto Mono", sans-serif;
+        font-family: "RobotoMonoMedium", sans-serif;
         color: rgba(34, 36, 38, 0.3);
       }
     }
@@ -196,7 +196,7 @@ button {
   flex-direction: column;
   padding: 13px 25px 10px 25px;
   border-top: 2px solid #f7f7f7;
-
+  font-family: "RubikMedium", sans-serif;
   span {
     font-style: normal;
     font-weight: 500;
@@ -208,7 +208,7 @@ button {
 
   textarea {
     border: none;
-    font-family: "Roboto Mono", sans-serif;
+    font-family: "RobotoMonoMedium", sans-serif;
     font-style: normal;
     font-weight: bold;
     font-size: 12px;
@@ -242,6 +242,7 @@ textarea:focus::-webkit-input-placeholder {
 }
 
 .max {
+  font-family: "RubikMedium", sans-serif;
   font-weight: 500;
   position: absolute;
   right: 30px;
