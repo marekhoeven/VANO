@@ -1,5 +1,6 @@
 # VANO
 A NANO light-wallet browser extension
+
 ![Dashboard](https://github.com/marekhoeven/VANO/blob/master/dashboard.png)
 
 
