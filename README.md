@@ -8,8 +8,9 @@ A NANO light-wallet browser extension
 - Add addressbook (alias system?)
 - Optimalisation of JS functions
 - Improve some shitty CSS (on components and globally)
+- Documentation + better structure 
 - Set user-option for minimum receive amount
-- Perhaps select what pendings to accept?
+- Perhaps select what individual pendings to accept?
 
 
 ## Acknowledgements
