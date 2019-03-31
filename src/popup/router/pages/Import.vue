@@ -111,7 +111,7 @@ export default {
 
   input {
     border: 0;
-    width: 100%;
+    width: 230px;
     background-color: #f7f7f7;
     box-sizing: border-box;
     padding: 7px 0 7px 12px;
@@ -164,13 +164,12 @@ textarea {
   word-wrap: break-word;
   width: 200px;
   overflow: hidden;
-  padding: 6px 15px 35px 15px;
-  margin: 13px auto 0 auto;
+  padding: 6px 15px 0px 15px;
+  margin: 9px auto 0 auto;
   border: 1px solid transparent;
   resize: none;
-  height: 43px;
+  height: 86px;
   outline: none;
-
   &::placeholder {
     font-family: "RubikMedium", sans-serif;
     font-weight: 500;

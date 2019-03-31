@@ -126,6 +126,7 @@ export default {
   word-wrap: break-word;
   color: rgba(34, 36, 38, 0.3);
   text-align: justify;
+  width: 230px;
 }
 
 .copyHolder {
@@ -133,7 +134,7 @@ export default {
   justify-content: center;
   position: relative;
   top: -30px;
-  left: 5px;
+  width: 280px;
 }
 
 .copy {

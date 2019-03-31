@@ -1,46 +1,18 @@
 <template>
-  <div class="settings">
-    <div class="header container">
-      <div class="headerText no-hl">
-        <h1>Settings</h1>
-        <p>Change your wallet data</p>
+  <div class="backup">
+    <div class="header">
+      <div class="headerText no-hl container">
+        <h1>Backup wallet</h1>
+        <p></p>
       </div>
     </div>
 
     <div class="overview container">
-      <div class="delete">
-        <input type="checkbox" name="sure" id="sure" v-model="checked">
-        <label for="sure" ref="label">
-          I understand that I will remove my local wallet.
-          <b>VANO cannot restore the wallet. Make sure you have a backup.</b>
-        </label>
-        <button class="remove" @click="removeData">Remove wallet &amp; Proceed</button>
-      </div>
-      <div class="change">
-        <input
-          ref="old_pw"
-          type="password"
-          placeholder="Enter old password"
-          autocomplete="off"
-          v-model="old_pw"
-        >
-        <input
-          ref="new_pw"
-          type="password"
-          placeholder="Enter new password"
-          autocomplete="off"
-          v-model="new_pw"
-        >
-        <input
-          ref="re_pw"
-          type="password"
-          placeholder="Re-enter new password"
-          autocomplete="off"
-          v-model="re_pw"
-        >
-        <button @click="changePw">Change password &amp; Proceed</button>
-      </div>
-
+      <p>
+        Make sure to write down your seed or save it somewhere safe,
+        and never share it with anyone! It is the master key to your NANO wallet,
+        and the only way to recover your funds in an emergency.
+      </p>
       <div class="showSeed">
         <input
           type="password"
@@ -69,7 +41,7 @@ import {
 } from "../../../utils/services.js";
 
 export default {
-  name: "settings",
+  name: "backup",
   data() {
     return {
       old_pw: "",
@@ -180,83 +152,53 @@ export default {
 
 .overview {
   div {
-    padding: 10px 0;
-  }
-
-  .delete,
-  .change {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  }
-
-  .change {
-    input:first-child {
-      margin-top: none;
-    }
-
-    button {
-      margin-top: 7px;
-    }
+    padding: 10px 0 0 0;
   }
 
   .showSeed {
     button {
-      margin-top: 7px;
+      margin-top: 17px;
     }
+  }
+
+  p {
+    padding: 20px 0 0 0;
+    color: #222426;
+    font-family: "RubikMedium";
   }
 }
 
-input[type="checkbox"] {
-  display: inline-block;
-  position: relative;
-  bottom: 35px;
-}
-
-label {
-  display: inline-block;
-  width: 90%;
-  font-style: normal;
-  font-weight: normal;
-  font-size: 11px;
-  line-height: 18px;
-  color: #222426;
-  padding-bottom: 10px;
-}
-
-p {
-  padding-right: 25px;
-}
-
 button {
+  font-family: "RubikMedium";
   width: 230px;
   border: none;
   background: #2f55df;
-  font-style: normal;
-  font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 18px;
   text-align: center;
   color: #ffffff;
   border-radius: 2px;
-  height: 30px;
+  height: 40px;
   cursor: pointer;
+  font-family: "RubikMedium";
+  &:hover {
+    background-color: #466eff;
+  }
 }
-
 input[type="password"] {
-  width: 100%;
-}
-
-input[type="password"] {
+  width: 230px;
   background: #fff;
   border-radius: 2px;
-  height: 25px;
+  height: 35px;
   color: rgba(34, 36, 38, 1);
   outline: none;
   box-sizing: border-box;
   padding: 10px 15px;
   border: 1px solid transparent;
-  margin-top: 4px;
-
-  &::placeholder {
+  &::placeholder,
+  &::-moz-placeholder,
+  &:-moz-placeholder,
+  &::-webkit-input-placeholder {
     font-style: normal;
     font-weight: 500;
     font-size: 12px;
@@ -277,9 +219,7 @@ input[type="password"] {
 
 .seed {
   background-color: #fff;
-  font-family: "Roboto Mono", monospace;
-  font-style: normal;
-  font-weight: bold;
+  font-family: "RobotoMonoMedium", monospace;
   line-height: 21px;
   font-size: 15px;
   text-align: justify;
@@ -290,16 +230,26 @@ input[type="password"] {
   width: 200px;
   overflow: hidden;
   padding: 15px 15px 35px 15px !important;
-  margin: 150px auto 20px auto;
+  margin: 100px auto 20px auto;
   box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
   border-radius: 2px;
 }
 
 button.closeSeed {
+  font-family: "RubikMedium", sans-serif;
   width: 230px;
   margin: 0 auto;
   display: block;
   position: relative;
-  top: -40px;
+  top: -30px;
+}
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 3;
 }
 </style>

@@ -10,7 +10,7 @@
       <div class="sendingAmount">
         <div class="amount">
           <span>Amount:</span>
-          <a class="max" @click="maxAmount">MAX</a>
+          <a class="max" @click="maxAmount()">MAX</a>
           <input type="text" class="nanoAmount" v-model="amount" placeholder="0">
         </div>
       </div>
@@ -30,11 +30,11 @@
 
       <div class="errorMessage" v-if="errorMessage">{{errorMessage}}</div>
     </div>
-    <div class="overview no-hl confirmScreen" v-else>
+    <div class="overview confirmScreen" v-else>
       <p>You are sending</p>
       <div class="amount">{{amount}}</div>
       <p>to</p>
-      <div class="addres">{{to_address}}</div>
+      <div class="address container">{{to_address}}</div>
     </div>
 
     <button class="send no-hl" @click="trySend()" v-if="!generating">
@@ -81,7 +81,7 @@ export default {
     },
 
     sendText: function() {
-      if (this.confirmScreen) {
+      if (this.isConfirm) {
         return "Confirm";
       }
       return "Send NANO";
@@ -106,6 +106,7 @@ export default {
 
   beforeDestroy() {
     chrome.storage.local.remove(["amount", "to_address"], function() {});
+    this.$bus.postMessage({ action: "resetConfirm" });
   },
 
   methods: {
@@ -118,13 +119,12 @@ export default {
         this.balance = msg.data.full_balance;
         this.generating = msg.data.isGenerating;
         this.isConfirm = msg.data.isConfirm;
+        this.confirmScreen = msg.data.isConfirm;
       }
     },
 
     maxAmount() {
-      if (this.balance > 0) {
-        this.amount = this.balance.replace(",", ".");
-      }
+      this.amount = this.balance.replace(",", ".");
     },
 
     trySend() {
@@ -142,7 +142,7 @@ export default {
 
       if (this.isConfirm) {
         this.$bus.postMessage({
-          action: "send",
+          action: "confirmSend",
           data: { amount: this.amount, to: this.to_address.trim() }
         });
       } else {
@@ -175,8 +175,6 @@ export default {
     padding: 15px 25px 0 25px;
     font-family: "RubikMedium", sans-serif;
     span {
-      font-style: normal;
-      font-weight: 500;
       font-size: 12px;
       line-height: 16px;
       color: rgba(34, 36, 38, 1);
@@ -189,8 +187,6 @@ export default {
       border: none;
       background-color: #fff;
       font-family: "RobotoMonoMedium", sans-serif;
-      font-style: normal;
-      font-weight: bold;
       font-size: 24px;
       line-height: 31px;
       width: 100%;
@@ -211,12 +207,11 @@ input[type="number"]::-webkit-outer-spin-button {
 
 button {
   width: 100%;
+  font-family: "RubikMedium";
   position: absolute;
   bottom: 0;
   height: 50px;
   border: none;
-  font-style: normal;
-  font-weight: 600;
   font-size: 15px;
   line-height: 21px;
   color: #ffffff;
@@ -236,8 +231,6 @@ button {
   border-top: 2px solid #f7f7f7;
   font-family: "RubikMedium", sans-serif;
   span {
-    font-style: normal;
-    font-weight: 500;
     font-size: 12px;
     line-height: 16px;
     color: rgba(34, 36, 38, 1);
@@ -247,8 +240,6 @@ button {
   textarea {
     border: none;
     font-family: "RobotoMonoMedium", sans-serif;
-    font-style: normal;
-    font-weight: bold;
     font-size: 12px;
     line-height: 15px;
     color: rgba(34, 36, 38, 1);
@@ -262,6 +253,7 @@ button {
     resize: none;
     &::placeholder {
       color: rgba(34, 36, 38, 0.3);
+      font-family: "RobotoMonoMedium", sans-serif;
     }
   }
 }
@@ -278,6 +270,7 @@ textarea:focus::-webkit-input-placeholder {
   padding-top: 10px;
   font-weight: 500;
   color: #df4b54;
+  font-size: 12px;
 }
 
 .max {
@@ -287,11 +280,55 @@ textarea:focus::-webkit-input-placeholder {
   right: 30px;
   margin-top: 7px;
   font-size: 11px;
+  z-index: 10;
   color: #2224263b;
 }
 
 .max:hover {
   color: rgba(34, 36, 38, 1);
   cursor: pointer;
+}
+
+.confirmScreen {
+  background-color: #1f378d;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 123px; // header height
+
+  p {
+    font-family: "RubikMedium", sans-serif;
+    font-size: 13px;
+    line-height: 17px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.27);
+    margin: 0;
+  }
+
+  p:first-child {
+    padding-top: 30px;
+  }
+
+  .amount {
+    font-family: "RobotoMonoBold", sans-serif;
+    font-size: 24px;
+    line-height: 31px;
+    text-align: center;
+    color: #ffffff;
+    padding: 5px 25px;
+    word-break: break-all;
+  }
+
+  .address {
+    font-family: "RobotoMonoBold", sans-serif;
+    font-size: 12px;
+    line-height: 15px;
+    text-align: center;
+    color: #ffffff;
+    width: 237px;
+    word-break: break-all;
+    padding-top: 5px;
+  }
 }
 </style>

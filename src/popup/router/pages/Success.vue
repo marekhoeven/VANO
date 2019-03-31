@@ -21,7 +21,7 @@
     <p>Your transaction was successful</p>
     <div class="info">
       <div class="hashLabel">Hash:</div>
-      <div class="hash" @click="goToTab()">{{hash}}</div>
+      <div class="hash container" @click="goToTab()">{{hash}}</div>
     </div>
 
     <a class="goBack" @click="toPage('dashboard')">Go back to the dashboard</a>
@@ -97,7 +97,7 @@ p {
 }
 
 .hashLabel {
-  width: 100%;
+  width: 230px;
   text-align: center;
 }
 
@@ -106,7 +106,7 @@ p {
   word-wrap: break-word;
   width: 120px;
   cursor: pointer;
-  text-align: right;
+  text-align: justify;
   text-decoration: underline;
 }
 

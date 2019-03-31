@@ -25,7 +25,7 @@
     <div class="pwArea">
       <input
         type="password"
-        class="pw no-hl"
+        class="pw"
         v-model="pw_unlock"
         :class="{'error': wrong}"
         placeholder="Enter password"

@@ -26,7 +26,6 @@ export class Wallet {
 
 		this.isProcessing = false
 		this.successfullBlocks = []
-		this.initWorkPool = 0
 		this.sendHash = ""
 		this.confirmSend = false
 		this.deeplinkData = {} // amount in raw, address
@@ -217,24 +216,30 @@ export class Wallet {
 				// RECEIVED TO ME!
 				this.frontier = data.hash
 				this.representative = data.block.representative
+
+				if (
+					!new BigNumber(data.block.balance).isEqualTo(
+						new BigNumber(this.balance)
+					)
+				) {
+					// check if still in pendingBlocks otherwise add to history
+					this.pendingBlocks.forEach((item, index) => {
+						if (data.block.link === item.hash) {
+							let amount = this.pendingBlocks[index].amount
+							let from = this.pendingBlocks[index].account
+							let hash = this.pendingBlocks[index].hash
+							this.pendingBlocks.splice(index, 1)
+
+							this.history.unshift({
+								amount: amount,
+								account: from,
+								hash: hash,
+								type: "receive"
+							})
+						}
+					})
+				}
 				this.balance = new BigNumber(data.block.balance)
-
-				// check if still in pendingBlocks otherwise add to history
-				this.pendingBlocks.forEach((item, index) => {
-					if (data.block.link === item.hash) {
-						let amount = this.pendingBlocks[index].amount
-						let from = this.pendingBlocks[index].account
-						let hash = this.pendingBlocks[index].hash
-						this.pendingBlocks.splice(index, 1)
-
-						this.history.unshift({
-							amount: amount,
-							account: from,
-							hash: hash,
-							type: "receive"
-						})
-					}
-				})
 
 				this.checkIcon()
 				this.updateView()
@@ -330,8 +335,15 @@ export class Wallet {
 	// INTERACTING WITH THE NANO NETWORK:
 	// SIGNING BLOCKS, SEND, RECEIVE, CHANGE ETC.
 	// ==================================================================
+	resetConfirm() {
+		this.isSending = false
+		this.confirmSend = false
+		this.updateView()
+	}
+
 	async send(raw_data) {
 		if (!this.checkSend(raw_data)) return
+
 		this.isSending = true
 		this.updateView()
 
@@ -339,7 +351,7 @@ export class Wallet {
 			const work = (await this.getWork(this.frontier, false)) || false
 			if (!work) {
 				console.log("1/ Error generating PoW")
-				this.isSending = false
+				this.resetConfirm()
 				this.toPage("failed")
 				return
 			}
@@ -350,30 +362,34 @@ export class Wallet {
 					if (response.hash) {
 						this.sendHash = response.hash
 						this.toPage("success")
+
+						// timeOut against spam
 						setTimeout(() => {
+							this.confirmSend = false
 							this.isSending = false
 						}, 4000)
 					} else {
 						console.log("2/ Pushblock error", response)
+						this.resetConfirm()
 						this.toPage("failed")
-						this.isSending = false
 					}
 				})
 				.catch(err => {
 					console.log("2/ Pushblock error", err)
+					this.resetConfirm()
 					this.toPage("failed")
-					this.isSending = false
 				})
 		} catch (err) {
 			console.log("3/ Sending error:", err)
+			this.resetConfirm()
 			this.toPage("failed")
-			this.isSending = false
 		}
 	}
 
 	async processPending() {
 		if (this.isProcessing || this.locked || !this.pendingBlocks.length) {
 			this.isViewProcessing = false
+			this.isProcessing = false
 			this.updateView()
 			return
 		}
@@ -390,6 +406,7 @@ export class Wallet {
 		if (!work) {
 			console.log("1/ Error generating PoW")
 			this.isViewProcessing = false
+			this.isProcessing = false
 			this.updateView()
 			return
 		}
@@ -420,16 +437,91 @@ export class Wallet {
 				} else {
 					console.log("2/ Error on server-side node")
 					this.isViewProcessing = false
+					this.isProcessing = false
 					this.updateView()
 					return
 				}
 			})
 			.catch(err => {
 				console.log("3/ Error on server-side node")
+				this.isProcessing = false
 				this.isViewProcessing = false
 				this.updateView()
 				return
 			})
+	}
+
+	async changeRepresentative(new_rep) {
+		if (this.isChangingRep) {
+			this.sendToView("errorMessage", "Changing too often, wait a few seconds")
+			return
+		}
+		this.isChangingRep = true
+
+		try {
+			const work = (await this.getWork(this.frontier, false)) || false
+			if (!work) {
+				this.isChangingRep = false
+				this.sendToView("errorMessage", "Something went wrong, try again")
+				this.updateView()
+				return
+			}
+
+			let block = this.newChangeBlock(new_rep, work[0])
+			this.pushBlock(block)
+				.then(response => {
+					if (response.hash) {
+						setTimeout(() => {
+							this.isChangingRep = false
+							this.updateView()
+						}, 5000)
+					} else {
+						this.isChangingRep = false
+						this.sendToView("errorMessage", "Something went wrong, try again")
+						this.updateView()
+					}
+				})
+				.catch(err => {
+					this.isChangingRep = false
+					this.sendToView("errorMessage", "Something went wrong, try again")
+					this.updateView()
+					return
+				})
+		} catch (err) {
+			this.isChangingRep = false
+			this.sendToView("errorMessage", "Something went wrong, try again")
+			this.updateView()
+			return
+		}
+	}
+
+	newChangeBlock(newRep, hasWork) {
+		let newBalancePadded = this.getPaddedBalance(this.balance)
+		let link =
+			"0000000000000000000000000000000000000000000000000000000000000000"
+		let signature = util.signChangeBlock(
+			this.publicAccount,
+			this.frontier,
+			newRep,
+			newBalancePadded,
+			link,
+			this.accountPair.secretKey
+		)
+
+		let changeBlock = {
+			type: "state",
+			account: this.publicAccount,
+			previous: this.frontier, //hex format
+			representative: newRep,
+			destination: false,
+			balance: this.balance.toString(10),
+			work: hasWork,
+			signature: signature,
+			linkHEX: link,
+			link: link
+		}
+
+		return changeBlock
 	}
 
 	newOpenBlock(blockinfo, hasWork) {
@@ -487,7 +579,35 @@ export class Wallet {
 			link: to
 		}
 	}
-	// TODO: SEND BLOCK
+
+	checkChangeRep(data) {
+		let newRep = data.trim()
+		if (this.isChangingRep) {
+			this.sendToView("errorMessage", "Changing too often, wait a few seconds")
+			return
+		}
+		if (newRep === "") {
+			this.sendToView("errorMessage", "Empty address-field")
+			return
+		}
+		if (newRep === this.representative) {
+			this.sendToView("errorMessage", "Already voting for this reprentative")
+			return
+		}
+		if (!util.checksumAccount(newRep)) {
+			this.sendToView("errorMessage", "Not a valid address")
+			return
+		}
+		if (
+			this.frontier ===
+			"0000000000000000000000000000000000000000000000000000000000000000"
+		) {
+			this.sendToView("errorMessage", "No open blocks yet")
+			return
+		}
+
+		this.changeRepresentative(data)
+	}
 	// TODO: CHANGE BLOCK
 
 	// FUNCTIONS TO INTERACT WITH THE WALLET VIEW
@@ -500,11 +620,15 @@ export class Wallet {
 			if (action === "toPage") this.toPage(data)
 			if (action === "import") this.checkImport(data)
 			if (action === "unlock") this.unlock(data)
+			if (action === "lock") this.lock()
 			if (action === "update") this.updateView()
 			if (action === "isLocked") this.sendToView("isLocked", this.locked)
 			if (action === "processPending") this.startProcessPending()
 			if (action === "checkSend") this.checkSend(data)
 			if (action === "confirmSend") this.send(data)
+			if (action === "resetConfirm") this.resetConfirm(data)
+			if (action === "changeRepresentative") this.checkChangeRep(data)
+			if (action === "removeWallet") this.removeWallet()
 		}
 	}
 
@@ -537,8 +661,10 @@ export class Wallet {
 			"locked",
 			"transactions",
 			"failed",
-			"settings",
-			"representative"
+			"delete",
+			"representative",
+			"backup",
+			"changepassword"
 		]
 
 		let validPage = allowed.includes(to) ? to : "welcome"
@@ -559,6 +685,58 @@ export class Wallet {
 		} catch (err) {
 			return this.sendToView("errorMessage", true)
 		}
+	}
+
+	async lock(toLocked = true) {
+		// this.serverConnection = true
+		// this.balance = new BigNumber(data.balance)
+		// this.frontier = data.frontier
+		// this.representative = data.representative
+		// this.history = data.history
+		// this.pendingBlocks = this.setPendingBlock(data.pending)
+		// this.subscribeTransactions()
+
+		this.serverConnection = false
+		this.locked = true
+		this.isViewProcessing = false
+		this.newTransactions$ = new BehaviorSubject(null)
+		this.isSending = false
+		this.isChangingRep = false
+		this.keepAliveSet = false
+
+		this.isProcessing = false
+		this.successfullBlocks = []
+		this.workPool = []
+		this.pendingBlocks = []
+		this.history = []
+		this.sendHash = ""
+		this.confirmSend = false
+		this.deeplinkData = {} // amount in raw, address
+		delete this.accountPair
+		delete this.publicAccount
+		delete this.balance
+		delete this.frontier
+		delete this.representative
+
+		if (toLocked) {
+			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
+			await this.toPage("locked")
+		}
+
+		if (this.socket) {
+			this.socket.close()
+			delete this.socket
+		}
+	}
+
+	async removeWallet() {
+		chrome.browserAction.setIcon({ path: "/icons/icon_128.png" })
+		this.lock(false)
+		this.toPage("welcome")
+		await chrome.storage.local.remove(
+			["generatedSeed", "inputSeed", "amount", "to_address", "work", "seed"],
+			function() {}
+		)
 	}
 
 	async checkImport(data) {
@@ -611,6 +789,8 @@ export class Wallet {
 		}
 
 		this.confirmSend = true
+		this.updateView()
+		return true
 	}
 
 	updateView() {
@@ -635,7 +815,7 @@ export class Wallet {
 			result.push(block)
 		})
 
-		let full_balance = util.rawToMnano(this.balance)
+		let full_balance = util.rawToMnano(this.balance).toString()
 		let prep_balance = full_balance.toString().slice(0, 8)
 		if (prep_balance === "0") {
 			prep_balance = "00.00"
@@ -651,7 +831,8 @@ export class Wallet {
 			representative: this.representative,
 			sendHash: this.sendHash,
 			isGenerating: this.isGenerating,
-			isConfirm: this.confirmSend
+			isConfirm: this.confirmSend,
+			isChangingRep: this.isChangingRep
 		}
 		this.sendToView("update", info)
 	}

@@ -8,7 +8,7 @@
     </div>
     <div class="address">
       <div class="container">Your current representative:</div>
-      <span ref="currRep" class="container">{{representative}}</span>
+      <span ref="currRep" class="container currRepr">{{representative}}</span>
     </div>
 
     <div class="overview">
@@ -26,7 +26,7 @@
       class="change"
       ref="changeButton"
       :class="{notClick : changing, 'successChange': succesChange}"
-      :disabled="succesChange"
+      :disabled="succesChange || changing"
       @click="change"
     >{{isChanging}}</button>
   </div>
@@ -51,32 +51,36 @@ export default {
   },
   computed: {
     isChanging() {
-      if (this.changing) {
-        return "Changing...";
-      } else if (this.succesChange) {
+      if (this.succesChange) {
         return "Successfully changed!";
-      } else {
+      } else if (!this.changing) {
         return "Change representative";
+      } else {
+        return "Changing...";
       }
     }
   },
   methods: {
     bgMessages(msg) {
       if (msg.action === "update") {
-        this.representative = msg.data.representative;
-
-        if (this.representative !== msg.data.representative) {
-          this.changing = false;
-          this.succesChange = true;
-          this.new_representative = "";
+        if (this.representative === "") {
           this.representative = msg.data.representative;
-          this.$refs.currRep.classList.add("success");
+        }
+        this.frontier = msg.data.frontier;
+        this.changing = msg.data.isChangingRep;
 
-          setTimeout(() => {
-            this.succesChange = false;
-            this.$refs.currRep.classList.remove("success");
-            this.$refs.changeButton.classList.remove("successChange");
-          }, 4000);
+        if (!this.changing) {
+          if (this.representative !== msg.data.representative) {
+            this.succesChange = true;
+            this.new_representative = "";
+            this.representative = msg.data.representative;
+            this.$refs.currRep.classList.add("success");
+            this.changing = false;
+            setTimeout(() => {
+              this.succesChange = false;
+              this.$refs.currRep.classList.remove("success");
+            }, 2000);
+          }
         }
       }
 
@@ -87,39 +91,14 @@ export default {
     },
     change() {
       this.errorMessage = false;
-      if (!this.changing) {
-        if (this.new_representative.trim() === "") {
-          this.errorMessage = "Empty field";
-          return;
-        }
-
-        if (this.new_representative.trim() === this.representative) {
-          this.errorMessage = "Same representative";
-          return;
-        }
-
-        if (!checksumAccount(this.new_representative.trim())) {
-          this.errorMessage = "Not a valid address";
-          return;
-        }
-
-        if (
-          this.frontier ===
-          "0000000000000000000000000000000000000000000000000000000000000000"
-        ) {
-          this.errorMessage = "No open blocks yet";
-          return;
-        }
-
-        this.changing = true;
-        this.$bus.postMessage({
-          action: "changeRepresentative",
-          data: this.new_representative.trim()
-        });
-      }
+      this.changing = true;
+      this.$bus.postMessage({
+        action: "changeRepresentative",
+        data: this.new_representative.trim()
+      });
     }
   },
-  created() {
+  beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({
       action: "update"
@@ -150,7 +129,7 @@ button.successChange {
   width: 100%;
   position: relative;
   top: -4px;
-  font-weight: bold;
+  font-family: "RubikMedium", sans-serif;
 }
 
 .wallet {
@@ -177,9 +156,7 @@ button.successChange {
   span {
     padding-top: 10px;
     padding-bottom: 20px;
-    font-family: "RobotoMonoMedium", sans-serif;
-    font-style: normal;
-    font-weight: bold;
+    font-family: "RobotoMonoBold", sans-serif;
     font-size: 11px;
     line-height: 14px;
     color: #222426;
@@ -196,13 +173,12 @@ button.successChange {
 }
 
 button {
+  font-family: "RubikMedium";
   width: 100%;
   position: absolute;
   bottom: 0;
   height: 50px;
   border: none;
-  font-style: normal;
-  font-weight: 600;
   font-size: 15px;
   line-height: 21px;
   color: #ffffff;
@@ -221,20 +197,20 @@ textarea {
   padding: 7px 0 7px 12px;
   margin: 5px 0 0 0;
   outline: none;
-  font-weight: 700;
   padding-right: 20px;
   border: 1px solid transparent;
   resize: none;
   height: 70px;
   outline: none;
   overflow: hidden;
-
+  font-family: "RobotoMonoMedium", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
   &::placeholder {
-    font-style: normal;
-    font-weight: 700;
     line-height: 16px;
     font-size: 12px;
     color: rgba(34, 36, 38, 0.3);
+    font-family: "RobotoMonoMedium", sans-serif;
   }
 }
 </style>

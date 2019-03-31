@@ -77,8 +77,7 @@ export default {
   font-family: "RubikMedium", sans-serif;
   div div {
     padding-top: 20px;
-    font-style: normal;
-    font-weight: 500;
+    font-family: "RubikMedium", sans-serif;
     font-size: 12px;
     line-height: 16px;
     color: rgba(34, 36, 38, 0.3);
@@ -88,8 +87,6 @@ export default {
     padding-top: 10px;
     padding-bottom: 20px;
     font-family: "RobotoMonoMedium", sans-serif;
-    font-style: normal;
-    font-weight: bold;
     font-size: 11px;
     line-height: 16px;
     color: #222426;
@@ -112,12 +109,11 @@ export default {
 
 button {
   width: 100%;
+  font-family: "RubikMedium";
   position: absolute;
   bottom: 0;
   height: 50px;
   border: none;
-  font-style: normal;
-  font-weight: 600;
   font-size: 15px;
   line-height: 21px;
   color: #ffffff;

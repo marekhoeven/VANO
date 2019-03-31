@@ -11,7 +11,9 @@ import Failed from "./pages/Failed"
 import Representative from "./pages/Representative"
 
 import Locked from "./pages/locked"
-import Settings from "./pages/Settings"
+import Delete from "./pages/DeleteWallet"
+import Backup from "./pages/Backup"
+import ChangePassword from "./pages/PasswordChange"
 
 export default [
 	// Setup pages
@@ -76,8 +78,18 @@ export default [
 		component: Locked
 	},
 	{
-		name: "settings",
-		path: "/settings",
-		component: Settings
+		name: "delete",
+		path: "/delete",
+		component: Delete
+	},
+	{
+		name: "backup",
+		path: "/backup",
+		component: Backup
+	},
+	{
+		name: "changepassword",
+		path: "/changepassword",
+		component: ChangePassword
 	}
 ]
