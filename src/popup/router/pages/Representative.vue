@@ -25,7 +25,7 @@
     <button
       class="change"
       ref="changeButton"
-      :class="{notClick : changing, 'successChange': succesChange}"
+      :class="{notClick : changing && !succesChange, 'successChange': succesChange}"
       :disabled="succesChange || changing"
       @click="change"
     >{{isChanging}}</button>
@@ -44,8 +44,6 @@ export default {
       new_representative: "",
       errorMessage: false,
       changing: false,
-      frontier:
-        "0000000000000000000000000000000000000000000000000000000000000000",
       succesChange: false
     };
   },
@@ -53,35 +51,30 @@ export default {
     isChanging() {
       if (this.succesChange) {
         return "Successfully changed!";
-      } else if (!this.changing) {
-        return "Change representative";
-      } else {
+      } else if (this.changing) {
         return "Changing...";
+      } else {
+        return "Change representative";
       }
     }
   },
   methods: {
     bgMessages(msg) {
       if (msg.action === "update") {
-        if (this.representative === "") {
-          this.representative = msg.data.representative;
-        }
-        this.frontier = msg.data.frontier;
-        this.changing = msg.data.isChangingRep;
+        this.representative = msg.data.representative;
+        this.changing = msg.data.isGenerating;
+      }
 
-        if (!this.changing) {
-          if (this.representative !== msg.data.representative) {
-            this.succesChange = true;
-            this.new_representative = "";
-            this.representative = msg.data.representative;
-            this.$refs.currRep.classList.add("success");
-            this.changing = false;
-            setTimeout(() => {
-              this.succesChange = false;
-              this.$refs.currRep.classList.remove("success");
-            }, 2000);
-          }
-        }
+      if (msg.action === "changedRep") {
+        this.representative = msg.data;
+        this.succesChange = true;
+        this.new_representative = "";
+        this.$refs.currRep.classList.add("success");
+        this.changing = false;
+        setTimeout(() => {
+          this.succesChange = false;
+          this.$refs.currRep.classList.remove("success");
+        }, 2000);
       }
 
       if (msg.action === "errorMessage") {

@@ -14,7 +14,8 @@ const config = {
 	entry: {
 		background: "./background.js",
 		content: "./content.js",
-		"popup/popup": "./popup/popup.js"
+		"popup/popup": "./popup/popup.js",
+		"deeplinkSend/deeplink": "./deeplinkSend/deeplink.js"
 	},
 	output: {
 		path: __dirname + "/dist",
@@ -76,6 +77,7 @@ const config = {
 			{ from: "icons", to: "icons", ignore: ["icon.xcf"] },
 			{ from: "fonts", to: "fonts" },
 			{ from: "pow", to: "pow" },
+			{ from: "deeplinkSend", to: "deeplinkSend" },
 			{
 				from: "popup/popup.html",
 				to: "popup/popup.html",

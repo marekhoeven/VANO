@@ -40,7 +40,7 @@
     <button class="send no-hl" @click="trySend()" v-if="!generating">
       <span>{{sendText}}</span>
     </button>
-    <button class="send no-hl" v-else>
+    <button class="send no-hl" v-if="generating" :disabled="generating">
       <span style="cursor: default">Generating work...</span>
     </button>
   </div>
@@ -113,6 +113,7 @@ export default {
     bgMessages(msg) {
       if (msg.action === "errorMessage") {
         this.errorMessage = msg.data;
+        this.generating = false;
       }
 
       if (msg.action === "update") {
@@ -141,6 +142,8 @@ export default {
       }
 
       if (this.isConfirm) {
+        this.errorMessage = false;
+        this.generating = true;
         this.$bus.postMessage({
           action: "confirmSend",
           data: { amount: this.amount, to: this.to_address.trim() }
@@ -186,13 +189,13 @@ export default {
       padding: 10px 0;
       border: none;
       background-color: #fff;
-      font-family: "RobotoMonoMedium", sans-serif;
+      font-family: "RobotoMonoBold", sans-serif;
       font-size: 24px;
       line-height: 31px;
       width: 100%;
 
       &::placeholder {
-        font-family: "RobotoMonoMedium", sans-serif;
+        font-family: "RobotoMonoBold", sans-serif;
         color: rgba(34, 36, 38, 0.3);
       }
     }
@@ -217,8 +220,13 @@ button {
   color: #ffffff;
   cursor: pointer;
   background-color: #2f55df;
-  &:hover {
+  &:hover:enabled {
     background-color: #466eff;
+  }
+
+  &:disabled {
+    cursor: default !important;
+    background-color: #5d7ffa;
   }
   z-index: 1;
 }
@@ -239,7 +247,7 @@ button {
 
   textarea {
     border: none;
-    font-family: "RobotoMonoMedium", sans-serif;
+    font-family: "RobotoMonoBold", sans-serif;
     font-size: 12px;
     line-height: 15px;
     color: rgba(34, 36, 38, 1);
@@ -253,7 +261,7 @@ button {
     resize: none;
     &::placeholder {
       color: rgba(34, 36, 38, 0.3);
-      font-family: "RobotoMonoMedium", sans-serif;
+      font-family: "RobotoMonoBold", sans-serif;
     }
   }
 }

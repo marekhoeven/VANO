@@ -360,7 +360,6 @@ export function checksumAccount(account) {
 
 		throw new Error("invalid_account")
 	} catch (err) {
-		console.log(err)
 		return false
 	}
 }

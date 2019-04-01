@@ -86,7 +86,7 @@ export default {
   span {
     padding-top: 10px;
     padding-bottom: 20px;
-    font-family: "RobotoMonoMedium", sans-serif;
+    font-family: "RobotoMonoBold", sans-serif;
     font-size: 11px;
     line-height: 16px;
     color: #222426;

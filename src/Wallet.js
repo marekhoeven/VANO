@@ -5,17 +5,18 @@ import axios from "axios"
 import "./pow/nano-webgl-pow.js"
 import * as startThreads from "./pow/startThreads.js"
 
-// const WS_URL = process.env.WS_URL || 9001
-// const API_URL = process.env.API_POINT || 3000
+const WS_URL = process.env.WS_URL || 9001
+const API_URL = process.env.API_POINT || 3000
 
-const WS_URL = "ws:localhost:9001/sockets"
-const API_URL = "http://localhost:3000/node-api"
+// const WS_URL = "ws:localhost:9001/sockets"
+// const API_URL = "http://localhost:3000/node-api"
 
 export class Wallet {
 	constructor() {
 		this.port = false
 		this.locked = true
 		this.openWalletView = false
+		this.openDeepView = false
 		this.isViewProcessing = false
 
 		this.serverConnection = false
@@ -28,13 +29,66 @@ export class Wallet {
 		this.successfullBlocks = []
 		this.sendHash = ""
 		this.confirmSend = false
-		this.deeplinkData = {} // amount in raw, address
+		this.deeplinkData = {} // amount in raw, mNANO, address
+	}
+
+	setDeepLinkData(amount, to) {
+		this.deeplinkData = {
+			raw: new BigNumber(amount),
+			to: to,
+			MNANO: util.rawToMnano(new BigNumber(amount)).toString()
+		}
+	}
+
+	async deepSend(port, data) {
+		this.port = port
+		if (!data.confirmed) {
+			this.checkSend(data)
+			return
+		}
+
+		this.isSending = true
+
+		try {
+			this.sendToView("generating", "")
+			const work = (await this.getWork(this.frontier, true, true)) || false
+			if (!work) {
+				console.log("1/ Error generating PoW")
+				this.sendToView("failure", "failure")
+				this.isSending = false
+				return
+			}
+
+			let block = this.newSendBlock({ data }, work[0])
+			this.pushBlock(block)
+				.then(response => {
+					if (response.hash) {
+						this.sendToView("success", response.hash)
+						// timeOut against spam
+						setTimeout(() => {
+							this.isSending = false
+						}, 4000)
+					} else {
+						console.log("2/ Pushblock error", response)
+						this.sendToView("failure", "failure")
+						this.isSending = false
+					}
+				})
+				.catch(err => {
+					console.log("2/ Pushblock error", err)
+					this.sendToView("failure", "failure")
+					this.isSending = false
+				})
+		} catch (err) {
+			console.log("3/ Sending error:", err)
+			this.sendToView("failure", "failure")
+			this.isSending = false
+		}
 	}
 	// BACKGROUND.JS STARTUP & OPENVIEW FUNCTIONS
 	// ==================================================================
 	async init() {
 		let seed = (await util.getLocalStorageItem("seed")) || false
-		this.workPool = (await util.getLocalStorageItem("work")) || false // { hash: work, hash: work, ... }
 		this.page = seed ? "locked" : "welcome"
 		this.socket = false
 		if (seed) {
@@ -77,7 +131,6 @@ export class Wallet {
 			return
 		}
 
-		// TODO: check schema from response
 		this.setupWalletInfo(requestAccountInformation.data.data)
 
 		let trySocketConnection = this.setSocket()
@@ -90,6 +143,10 @@ export class Wallet {
 		this.locked = false
 		this.checkIcon()
 		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
+
+		//Setup workpool for frontier
+		this.workPool = (await util.getLocalStorageItem("work")) || false // {work, hash} from frontier
+		this.getNewWorkPool()
 	}
 
 	async setupWalletInfo(data) {
@@ -99,6 +156,7 @@ export class Wallet {
 		this.representative = data.representative
 		this.history = data.history
 		this.pendingBlocks = this.setPendingBlock(data.pending)
+		this.hasChanged = false
 		this.subscribeTransactions()
 	}
 
@@ -216,7 +274,6 @@ export class Wallet {
 				// RECEIVED TO ME!
 				this.frontier = data.hash
 				this.representative = data.block.representative
-
 				if (
 					!new BigNumber(data.block.balance).isEqualTo(
 						new BigNumber(this.balance)
@@ -249,10 +306,7 @@ export class Wallet {
 
 	// GENERATING WORK & WORKPOOL:
 	// ==================================================================
-	async getWork(hash, useServer = false) {
-		console.log("Generating work for", hash)
-		this.isGenerating = true
-		this.updateView()
+	async getWork(hash, useServer = false, checkPool = true) {
 		// Always returns an array: [work, hash]
 		let hashWork = hash
 		// If new account
@@ -263,14 +317,18 @@ export class Wallet {
 			hashWork = util.getAccountPublicKey(this.publicAccount)
 		}
 
-		// Check for local cached work
-		// if (this.workPool && this.workPool[hashWork]) {
-		// 	console.log("Locally found work!")
-		// 	let work = this.workPool[hashWork]
-		// 	delete this.workPool[hashWork]
-		// 	console.log("workpool")
-		// 	return [work, hashWork]
-		// }
+		if (checkPool) {
+			// Check for local cached work
+			if (this.workPool.hash === hashWork && this.workPool.work) {
+				console.log("Found in workpool")
+				let work = this.workPool.work
+				this.workPool = false
+				return [work, hashWork]
+			}
+
+			this.isGenerating = true
+			this.updateView()
+		}
 
 		if (useServer) {
 			let gotWorkResponse = await util.getResponseFromAwait(
@@ -304,32 +362,26 @@ export class Wallet {
 			this.updateView()
 			return [localwork.data.work, hashWork]
 		}
+		console.log("Error Generating PoW in getWork")
+		// If PoW failed
 		this.isGenerating = false
 		this.updateView()
 		return false
 	}
 
-	// TODO: SETUP WORKPOOL AS REDIS SERVER
-	// IF ALREADY IN WORKPOOL, DONT ADD/DPOW
-	async appendToWorkPool(hash) {
-		if (this.workPool[hash]) return console.log("Already in pool")
+	async getNewWorkPool() {
+		if (this.workPool.hash === this.frontier && this.workPool.work) return
+		if (!this.workPool || typeof this.workPool !== "object") this.workPool = {}
 
-		if (Object.keys(this.workPool).length >= 20) {
-			let randomHash = this.randomKey(this.workPool)
-			delete this.workPool[randomHash]
+		console.log("New work for WorkPool")
+		const work = (await this.getWork(this.frontier, true, false)) || false
+		if (!work) {
+			console.log("1/ Error generating background-PoW")
+			return
 		}
 
-		let workBlock = await this.getWork(hash, true)
-		if (!workBlock || !workBlock[0] || !workBlock[1]) return
-		this.workPool[workBlock[1]] = workBlock[0]
+		this.workPool = { work: work[0], hash: work[1] }
 		await util.setLocalStorageItem("work", this.workPool)
-	}
-
-	setupWorkPool() {
-		if (typeof this.workPool === "boolean") this.workPool = {}
-		this.pending.forEach(item => {
-			this.appendToWorkPool(item.hash)
-		})
 	}
 
 	// INTERACTING WITH THE NANO NETWORK:
@@ -345,10 +397,11 @@ export class Wallet {
 		if (!this.checkSend(raw_data)) return
 
 		this.isSending = true
+		this.isGenerating = true
 		this.updateView()
 
 		try {
-			const work = (await this.getWork(this.frontier, false)) || false
+			const work = (await this.getWork(this.frontier, true, true)) || false
 			if (!work) {
 				console.log("1/ Error generating PoW")
 				this.resetConfirm()
@@ -362,7 +415,8 @@ export class Wallet {
 					if (response.hash) {
 						this.sendHash = response.hash
 						this.toPage("success")
-
+						this.frontier = response.hash
+						this.getNewWorkPool()
 						// timeOut against spam
 						setTimeout(() => {
 							this.confirmSend = false
@@ -401,7 +455,7 @@ export class Wallet {
 			return setTimeout(() => this.processPending(), 1500)
 		}
 
-		const work = (await this.getWork(this.frontier, false)) || false
+		const work = (await this.getWork(this.frontier, true, true)) || false
 
 		if (!work) {
 			console.log("1/ Error generating PoW")
@@ -414,7 +468,8 @@ export class Wallet {
 		let block = this.newOpenBlock(nextBlock, work[0])
 		this.pushBlock(block)
 			.then(response => {
-				if (response) {
+				console.log("RECEIVING", response)
+				if (response.hash) {
 					if (this.successfullBlocks.length >= 15)
 						this.successfullBlocks.shift()
 					this.successfullBlocks.push(nextBlock.hash)
@@ -431,6 +486,8 @@ export class Wallet {
 					if (!this.pendingBlocks.length) {
 						this.isViewProcessing = false
 						this.updateView()
+						this.frontier = response.hash
+						this.getNewWorkPool()
 					} else {
 						setTimeout(() => this.processPending(), 1500)
 					}
@@ -457,9 +514,8 @@ export class Wallet {
 			return
 		}
 		this.isChangingRep = true
-
 		try {
-			const work = (await this.getWork(this.frontier, false)) || false
+			const work = (await this.getWork(this.frontier, true, true)) || false
 			if (!work) {
 				this.isChangingRep = false
 				this.sendToView("errorMessage", "Something went wrong, try again")
@@ -471,14 +527,18 @@ export class Wallet {
 			this.pushBlock(block)
 				.then(response => {
 					if (response.hash) {
+						this.frontier = response.hash
+						this.sendToView("changedRep", new_rep)
+						this.getNewWorkPool()
+
 						setTimeout(() => {
 							this.isChangingRep = false
-							this.updateView()
 						}, 5000)
 					} else {
 						this.isChangingRep = false
 						this.sendToView("errorMessage", "Something went wrong, try again")
 						this.updateView()
+						return
 					}
 				})
 				.catch(err => {
@@ -688,14 +748,6 @@ export class Wallet {
 	}
 
 	async lock(toLocked = true) {
-		// this.serverConnection = true
-		// this.balance = new BigNumber(data.balance)
-		// this.frontier = data.frontier
-		// this.representative = data.representative
-		// this.history = data.history
-		// this.pendingBlocks = this.setPendingBlock(data.pending)
-		// this.subscribeTransactions()
-
 		this.serverConnection = false
 		this.locked = true
 		this.isViewProcessing = false
@@ -706,12 +758,13 @@ export class Wallet {
 
 		this.isProcessing = false
 		this.successfullBlocks = []
-		this.workPool = []
 		this.pendingBlocks = []
 		this.history = []
 		this.sendHash = ""
 		this.confirmSend = false
 		this.deeplinkData = {} // amount in raw, address
+
+		this.workPool = {}
 		delete this.accountPair
 		delete this.publicAccount
 		delete this.balance
@@ -734,7 +787,7 @@ export class Wallet {
 		this.lock(false)
 		this.toPage("welcome")
 		await chrome.storage.local.remove(
-			["generatedSeed", "inputSeed", "amount", "to_address", "work", "seed"],
+			["generatedSeed", "inputSeed", "amount", "to_address", "seed"],
 			function() {}
 		)
 	}
@@ -788,9 +841,13 @@ export class Wallet {
 			return false
 		}
 
-		this.confirmSend = true
-		this.updateView()
-		return true
+		if (this.openDeepView) {
+			this.sendToView("confirm", true)
+		} else {
+			this.confirmSend = true
+			this.updateView()
+			return true
+		}
 	}
 
 	updateView() {
@@ -831,8 +888,7 @@ export class Wallet {
 			representative: this.representative,
 			sendHash: this.sendHash,
 			isGenerating: this.isGenerating,
-			isConfirm: this.confirmSend,
-			isChangingRep: this.isChangingRep
+			isConfirm: this.confirmSend
 		}
 		this.sendToView("update", info)
 	}
@@ -840,7 +896,8 @@ export class Wallet {
 	// BASIC UTILITY FUNCTIONS
 	// ==================================================================
 	sendToView(action, data) {
-		if (this.openWalletView) this.port.postMessage({ action, data })
+		if (this.openWalletView || this.openDeepView)
+			this.port.postMessage({ action, data })
 	}
 
 	sendAPIRequest(type, data) {
