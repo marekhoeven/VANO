@@ -1,7 +1,7 @@
 # VANO (BETA)
 A NANO light-wallet browser extension. It works with  NANO, a fast & fee-less currency secured by a decentralised network. The wallet stores all sensitive data locally (encrypted) and never communicates it to a server. 
 
-**VANO is still in beta and I *do not* store large amounts of NANO on this wallet!**
+**VANO is still in beta, *do not* store large amounts of NANO on this wallet!**
 
 ![Dashboard](https://github.com/marekhoeven/VANO/blob/master/dashboard.png)
 
