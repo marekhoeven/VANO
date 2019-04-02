@@ -10,14 +10,47 @@ The extension requires read/write access to allow for deeplink recognition on a 
 
 You can test deeplinks on my [DEMO page](https://marekhoeven.github.io/deeplink/). 
 
+## How to run the extension locally
+
+```bash
+$ xxx
+$ cd xxx
+$ npm install
+```
+
+### `npm run build` 
+
+Build the extension into `dist` folder for **production**.
+
+### `npm run build:dev` 
+
+Build the extension into `dist` folder for **development**.
+
+### `npm run watch`
+
+Watch for modifications then run `npm run build`.
+
+### `npm run watch:dev`
+
+Watch for modifications then run `npm run build:dev`.
+
+It also enable [Hot Module Reloading](https://webpack.js.org/concepts/hot-module-replacement), thanks to [webpack-chrome-extension-reloader](https://github.com/rubenspgcavalcante/webpack-chrome-extension-reloader) plugin. 
+
+:warning: Keep in mind that HMR only works for your **background** entry.
+
+### `npm run build-zip`
+
+Build a zip file following this format `<name>-v<version>.zip`, by reading `name` and `version` from `manifest.json` file.
+Zip file is located in `dist-zip` folder.
+
 ## Todo
 
 - Add addressbook (alias system?)
 - Optimalisation of JS functions
 - Improve some shitty CSS (on components and globally)
-- Documentation + better structure 
-- Set user-option for minimum receive amount
-- Perhaps select what individual pendings to accept?
+- Documentation + better structure for teamwork 
+- Set more user-option like a minimum receive amount
+- Perhaps select what specific individual pendings to accept?
 
 
 ## Acknowledgements
