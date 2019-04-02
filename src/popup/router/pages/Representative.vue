@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Representative</h1>
-        <p>Change your representative node</p>
       </div>
     </div>
     <div class="address">
@@ -44,7 +43,8 @@ export default {
       new_representative: "",
       errorMessage: false,
       changing: false,
-      succesChange: false
+      succesChange: false,
+      offline: false
     };
   },
   computed: {
@@ -63,6 +63,7 @@ export default {
       if (msg.action === "update") {
         this.representative = msg.data.representative;
         this.changing = msg.data.isGenerating;
+        this.offline = msg.data.offline;
       }
 
       if (msg.action === "changedRep") {
@@ -84,6 +85,10 @@ export default {
     },
     change() {
       this.errorMessage = false;
+      if (this.offline) {
+        this.errorMessage = "You are disconnected";
+        return;
+      }
       this.changing = true;
       this.$bus.postMessage({
         action: "changeRepresentative",
@@ -104,6 +109,11 @@ export default {
 <style lang="scss" scoped>
 button.successChange {
   background-color: #4bb18d !important;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
 }
 
 .notClick {

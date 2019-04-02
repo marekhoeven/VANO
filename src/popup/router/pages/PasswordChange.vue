@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Change password</h1>
-        <p></p>
       </div>
     </div>
 
@@ -112,6 +111,10 @@ export default {
 .wallet {
   background-color: #f7f7f7 !important;
   height: 100%;
+}
+
+h1 {
+  padding-bottom: 20px;
 }
 
 .errorMessage {

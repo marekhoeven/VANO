@@ -132,11 +132,16 @@ export default {
       errorMessage: false,
       errorHash: false,
       generating: false,
-      confirmScreen: false
+      confirmScreen: false,
+      offline: false
     };
   },
   methods: {
     bgMessages(msg) {
+      if (msg.action === "update") {
+        this.offline = msg.data.offline;
+      }
+
       if (msg.action === "setFields") {
         this.amount = msg.data.amount;
         this.to = msg.data.to;
@@ -172,6 +177,10 @@ export default {
 
     toConfirm() {
       this.errorMessage = false;
+      if (this.offline) {
+        this.errorMessage = "You are disconnected";
+        return;
+      }
 
       if (this.amount.length == 0) {
         this.errorMessage = "Amount-field is empty";
@@ -208,6 +217,7 @@ export default {
   created() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({ action: "setFields" });
+    this.$bus.postMessage({ action: "update" });
   }
 };
 </script>
@@ -277,6 +287,7 @@ p {
   font-weight: 500;
   text-align: center;
   padding: 10px 0;
+  font-size: 12px;
 }
 
 .errorMessage {
@@ -422,10 +433,11 @@ p {
       line-height: 15px;
       text-align: center;
       color: #ffffff;
-      width: 237px;
       word-break: break-all;
+      box-sizing: border-box;
       padding-top: 5px;
       margin: 0 auto;
+      max-width: 237px;
     }
   }
 

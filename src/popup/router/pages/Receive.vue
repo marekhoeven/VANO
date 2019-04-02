@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Receive</h1>
-        <p>Having more NANO is a happier life</p>
       </div>
     </div>
     <div class="address">
@@ -128,5 +127,10 @@ button {
 .green {
   background-color: #4bb993 !important;
   transition: background-color 0.01 ease;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
 }
 </style>

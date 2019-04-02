@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Dashboard</h1>
-        <p>View your wallet details below</p>
       </div>
     </div>
 
@@ -76,6 +75,11 @@ export default {
   font-family: "RubikMedium", sans-serif;
   display: flex;
   flex-direction: column;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
 }
 
 .header {

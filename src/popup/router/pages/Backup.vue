@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Backup wallet</h1>
-        <p></p>
       </div>
     </div>
 
@@ -144,6 +143,11 @@ export default {
 
 .errorMessage {
   color: #df4b54;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
 }
 
 .header {

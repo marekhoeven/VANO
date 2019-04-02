@@ -58,7 +58,8 @@ export default {
       pendings: 0,
       errorProcessing: false,
       clicked: false,
-      noTX: true
+      noTX: true,
+      offline: false
     };
   },
 
@@ -168,6 +169,7 @@ export default {
 
     bgMessages(msg) {
       if (msg.action === "update") {
+        this.offline = msg.data.offline;
         this.transactions = this.adjustTransactions(msg.data.transactions);
         this.pendings = msg.data.total_pending;
         this.isProcessing = msg.data.isProcessing;
@@ -193,6 +195,7 @@ export default {
     },
 
     processTransactions() {
+      if (this.offline) return;
       this.$bus.postMessage({ action: "processPending" });
     }
   },

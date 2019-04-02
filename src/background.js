@@ -5,7 +5,6 @@ function startExtension() {
 	let deepLinkPopUp = false
 	let wallet = new Wallet()
 	wallet.init()
-
 	chrome.runtime.onConnect.addListener(async port => {
 		if (port.name === "popupController") {
 			wallet.openPopup(port)
@@ -19,34 +18,22 @@ function startExtension() {
 				if (!wallet.locked) {
 					wallet.setDeepLinkData(msg.amount, msg.address)
 					await chrome.windows.getCurrent(async function(win) {
-						let popWindow = 280
 						let top = win.top + 90
-						let left = win.left + win.width - 290
-						await chrome.windows.create(
-							{
-								url: chrome.extension.getURL("deeplinkSend/index.html"),
-								type: "popup",
-								width: popWindow,
-								height: 381,
-								top,
-								left,
-								focused: true
-							},
-							function(window) {
-								deepLinkPopUp = window
-							}
+						let left = win.left + win.width - 330
+						deepLinkPopUp = window.open(
+							"deeplinkSend/index.html",
+							"Deeplink",
+							"height=460,width=310,top=" +
+								top +
+								",left=" +
+								left +
+								"status=yes,toolbar=no,menubar=no,location=no"
 						)
 
 						// Auto-close when onblur
-						setTimeout(function() {
-							chrome.windows.onFocusChanged.addListener(winID => {
-								if (deepLinkPopUp && winID !== deepLinkPopUp.id) {
-									chrome.windows.remove(deepLinkPopUp.id, () => {
-										deepLinkPopUp = false
-									})
-								}
-							})
-						}, 500)
+						deepLinkPopUp.onblur = function() {
+							this.close()
+						}
 					})
 				}
 
@@ -59,9 +46,7 @@ function startExtension() {
 		if (port.name === "deeplinkController") {
 			port.onMessage.addListener(async msg => {
 				if (msg.action === "close") {
-					chrome.windows.remove(deepLinkPopUp.id, () => {
-						deepLinkPopUp = false
-					})
+					deepLinkPopUp.close()
 				}
 
 				if (msg.action === "setFields") {

@@ -5,11 +5,10 @@ import axios from "axios"
 import "./pow/nano-webgl-pow.js"
 import * as startThreads from "./pow/startThreads.js"
 
-const WS_URL = process.env.WS_URL || 9001
-const API_URL = process.env.API_POINT || 3000
-
-// const WS_URL = "ws:localhost:9001/sockets"
-// const API_URL = "http://localhost:3000/node-api"
+// const WS_URL = process.env.WS_URL
+// const API_URL = process.env.API_POINT
+const WS_URL = "ws:localhost:9001/sockets"
+const API_URL = "http://localhost:3000/node-api"
 
 export class Wallet {
 	constructor() {
@@ -19,11 +18,14 @@ export class Wallet {
 		this.openDeepView = false
 		this.isViewProcessing = false
 
-		this.serverConnection = false
+		this.socket = { ws: null, connected: false }
 		this.newTransactions$ = new BehaviorSubject(null)
 		this.isSending = false
 		this.isChangingRep = false
 		this.keepAliveSet = false
+		this.offline = true
+		this.reconnectTimeout = 5 * 1000
+		this.keepaliveTimeout = 30 * 1000
 
 		this.isProcessing = false
 		this.successfullBlocks = []
@@ -47,6 +49,11 @@ export class Wallet {
 			return
 		}
 
+		if (this.offline) {
+			this.sendToView("errorMessage", "You are disconnected")
+			return
+		}
+
 		this.isSending = true
 
 		try {
@@ -64,6 +71,9 @@ export class Wallet {
 				.then(response => {
 					if (response.hash) {
 						this.sendToView("success", response.hash)
+						this.frontier = response.hash
+						this.getNewWorkPool()
+
 						// timeOut against spam
 						setTimeout(() => {
 							this.isSending = false
@@ -90,12 +100,11 @@ export class Wallet {
 	async init() {
 		let seed = (await util.getLocalStorageItem("seed")) || false
 		this.page = seed ? "locked" : "welcome"
-		this.socket = false
 		if (seed) {
 			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
 		}
 
-		// Remove temporary LocalStorage-items if extension crashed/was offline for long
+		// Remove temporary LocalStorage-items if extension crashed/was offline for a long time
 		util.clearLocalStorage([
 			"generatedSeed",
 			"inputSeed",
@@ -117,47 +126,24 @@ export class Wallet {
 		if (!/[0-9A-Fa-f]{64}/g.test(seed)) return
 		let accountBytes = util.generateAccountSecretKeyBytes(
 			util.hexToUint8(seed),
-			0 // only first account
+			0
 		)
 		this.accountPair = util.generateAccountKeyPair(accountBytes)
 		this.publicAccount = util.getPublicAccountID(this.accountPair.publicKey)
-		let requestAccountInformation = await util.getResponseFromAwait(
-			this.sendAPIRequest("update", this.publicAccount)
-		)
 
-		if (!requestAccountInformation.ok) {
-			// TODO: notify view about offline status; reconnecting every 5..10..15 seconds.
-			console.log("ERROR CONNECTING API", requestAccountInformation.error)
-			return
-		}
-
-		this.setupWalletInfo(requestAccountInformation.data.data)
-
-		let trySocketConnection = this.setSocket()
-		if (!trySocketConnection) {
-			console.log("ERROR AT WEBSOCKET CONNECTION")
-			return
-		}
-
-		// If everything connected/online
-		this.locked = false
-		this.checkIcon()
-		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
-
-		//Setup workpool for frontier
 		this.workPool = (await util.getLocalStorageItem("work")) || false // {work, hash} from frontier
-		this.getNewWorkPool()
+
+		this.subscribeTransactions()
+		this.connect()
 	}
 
 	async setupWalletInfo(data) {
-		this.serverConnection = true
 		this.balance = new BigNumber(data.balance)
 		this.frontier = data.frontier
 		this.representative = data.representative
 		this.history = data.history
 		this.pendingBlocks = this.setPendingBlock(data.pending)
 		this.hasChanged = false
-		this.subscribeTransactions()
 	}
 
 	setPendingBlock(data) {
@@ -175,59 +161,113 @@ export class Wallet {
 		return result
 	}
 
-	setSocket() {
-		try {
-			this.socket = new WebSocket(WS_URL)
-
-			this.socket.addEventListener("open", msg => {
-				const start_event = JSON.stringify({
-					event: "subscribe",
-					data: this.publicAccount
-				})
-				this.socket.send(start_event)
-			})
-
-			this.socket.addEventListener("message", msg => {
-				try {
-					let event = JSON.parse(msg.data)
-					let type = event.event
-					let data = event.data
-
-					if (type === "newTransaction") {
-						this.newTransactions$.next(data)
-					}
-				} catch (err) {
-					return console.log("Error during onMessage parsing:", err.message)
-				}
-			})
-
-			this.socket.addEventListener("error", msg => {
-				this.offlineServer("WebSockket Error: lost connection")
-				clearInterval(this.keepAlive)
-				this.keepAlive = false
-				this.keepAliveSet = false
-			})
-
-			this.socket.addEventListener("close", msg => {
-				if (!msg.wasClean) {
-					this.offlineServer("WebSocket Closed itself")
-				}
-				clearInterval(this.keepAlive)
-				this.keepAlive = false
-				this.keepAliveSet = false
-			})
-
-			if (!this.keepAliveSet) {
-				this.keepAlive = setInterval(() => {
-					this.socket.send(JSON.stringify({ alive: "keepAlive" }))
-				}, 1000 * 30)
-
-				this.keepAliveSet = true
-			}
-			return true
-		} catch (err) {
-			return false
+	forceDisconnect() {
+		if (this.socket.connected && this.socket.ws) {
+			this.socket.ws.onclose = msg => {}
+			this.socket.ws.close()
+			delete this.socket.ws
+			this.socket.connected = false
+		} else {
+			delete this.socket.ws
+			this.socket = { ws: null, connected: false }
 		}
+	}
+
+	async getWalletUpdate() {
+		let requestAccountInformation = await util.getResponseFromAwait(
+			this.sendAPIRequest("update", this.publicAccount)
+		)
+
+		if (!requestAccountInformation.ok) {
+			this.offline = true
+			this.updateView()
+			this.attemptReconnect()
+			return
+		}
+
+		this.setupWalletInfo(requestAccountInformation.data.data)
+		this.locked = false
+		this.checkIcon()
+		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
+		this.getNewWorkPool()
+		this.offline = false
+		this.updateView()
+		this.reconnectTimeout = 5 * 1000
+	}
+
+	connect() {
+		if (this.socket.connected && this.socket.ws) return
+		delete this.socket.ws
+		const ws = new WebSocket(WS_URL)
+		this.socket.ws = ws
+		ws.onopen = msg => {
+			this.socket.connected = true
+			const start_event = JSON.stringify({
+				event: "subscribe",
+				data: this.publicAccount
+			})
+
+			ws.send(start_event)
+
+			if (!this.keepaliveSet) {
+				this.keepAlive()
+			}
+
+			this.getWalletUpdate()
+		}
+
+		ws.onerror = msg => {
+			this.offline = true
+			this.sendToView("offline", true)
+			try {
+				this.updateView()
+			} catch (err) {}
+
+			console.log("Socket error", msg)
+		}
+
+		ws.onclose = msg => {
+			this.offline = true
+			this.sendToView("offline", true)
+			try {
+				this.updateView()
+			} catch (err) {}
+			this.socket.connected = false
+			console.log("Socket closed", msg)
+			setTimeout(() => this.attemptReconnect(), this.reconnectTimeout)
+		}
+
+		ws.onmessage = msg => {
+			try {
+				let event = JSON.parse(msg.data)
+				let type = event.event
+				let data = event.data
+
+				if (type === "newTransaction") {
+					this.newTransactions$.next(data)
+				}
+			} catch (err) {
+				return false
+			}
+		}
+	}
+
+	attemptReconnect() {
+		this.connect()
+		if (this.reconnectTimeout < 30 * 1000) {
+			this.reconnectTimeout += 5 * 1000 // Slowly increase the timeout up to 30 seconds
+		}
+	}
+
+	keepAlive() {
+		this.keepAliveSet = true
+		if (this.socket.connected) {
+			this.socket.ws.send(JSON.stringify({ alive: "keepAlive" }))
+		}
+
+		setTimeout(() => {
+			this.keepAlive()
+		}, this.keepaliveTimeout)
 	}
 
 	subscribeTransactions() {
@@ -320,7 +360,6 @@ export class Wallet {
 		if (checkPool) {
 			// Check for local cached work
 			if (this.workPool.hash === hashWork && this.workPool.work) {
-				console.log("Found in workpool")
 				let work = this.workPool.work
 				this.workPool = false
 				return [work, hashWork]
@@ -337,11 +376,10 @@ export class Wallet {
 					hash: hashWork
 				})
 			)
-
 			if (gotWorkResponse.ok) {
 				this.isGenerating = false
 				this.updateView()
-				return [gotWorkResponse.data.data.work, hashWork] // [work, hash]
+				return [gotWorkResponse.data.data.work, gotWorkResponse.data.data.hash] // [work, hash]
 			}
 		}
 
@@ -370,10 +408,16 @@ export class Wallet {
 	}
 
 	async getNewWorkPool() {
-		if (this.workPool.hash === this.frontier && this.workPool.work) return
-		if (!this.workPool || typeof this.workPool !== "object") this.workPool = {}
+		let checkHash = this.frontier
+		if (
+			checkHash ===
+			"0000000000000000000000000000000000000000000000000000000000000000"
+		) {
+			checkHash = util.getAccountPublicKey(this.publicAccount)
+		}
 
-		console.log("New work for WorkPool")
+		if (this.workPool.hash === checkHash && this.workPool.work) return
+		if (!this.workPool || typeof this.workPool !== "object") this.workPool = {}
 		const work = (await this.getWork(this.frontier, true, false)) || false
 		if (!work) {
 			console.log("1/ Error generating background-PoW")
@@ -451,7 +495,7 @@ export class Wallet {
 		this.isProcessing = true
 		const nextBlock = this.pendingBlocks[0]
 		if (this.successfullBlocks.find(b => b.hash == nextBlock.hash)) {
-			console.log("Already found in successfullBlocks..retry")
+			//console.log("Already found in successfullBlocks..retry")
 			return setTimeout(() => this.processPending(), 1500)
 		}
 
@@ -468,7 +512,6 @@ export class Wallet {
 		let block = this.newOpenBlock(nextBlock, work[0])
 		this.pushBlock(block)
 			.then(response => {
-				console.log("RECEIVING", response)
 				if (response.hash) {
 					if (this.successfullBlocks.length >= 15)
 						this.successfullBlocks.shift()
@@ -741,45 +784,44 @@ export class Wallet {
 			if (!/[0-9A-Fa-f]{64}/g.test(seed) || pw.length < 2) {
 				return this.sendToView("errorMessage", true)
 			}
-			await this.setupWallet(seed)
+			this.setupWallet(seed)
 		} catch (err) {
 			return this.sendToView("errorMessage", true)
 		}
 	}
 
 	async lock(toLocked = true) {
-		this.serverConnection = false
+		if (toLocked) {
+			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
+			await this.toPage("locked")
+		}
 		this.locked = true
-		this.isViewProcessing = false
 		this.newTransactions$ = new BehaviorSubject(null)
-		this.isSending = false
-		this.isChangingRep = false
-		this.keepAliveSet = false
+		this.offline = true
+		this.reconnectTimeout = 5 * 1000
+		this.keepaliveTimeout = 40 * 1000
 
 		this.isProcessing = false
+		this.isViewProcessing = false
+		this.isSending = false
+		this.isChangingRep = false
+		this.successfullBlocks = []
+		this.sendHash = ""
+		this.confirmSend = false
+		this.deeplinkData = {} // amount in raw, mNANO, address
+		this.keepAliveSet = false
 		this.successfullBlocks = []
 		this.pendingBlocks = []
 		this.history = []
-		this.sendHash = ""
-		this.confirmSend = false
-		this.deeplinkData = {} // amount in raw, address
-
 		this.workPool = {}
+
+		this.forceDisconnect()
+
 		delete this.accountPair
 		delete this.publicAccount
 		delete this.balance
 		delete this.frontier
 		delete this.representative
-
-		if (toLocked) {
-			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
-			await this.toPage("locked")
-		}
-
-		if (this.socket) {
-			this.socket.close()
-			delete this.socket
-		}
 	}
 
 	async removeWallet() {
@@ -826,7 +868,7 @@ export class Wallet {
 		if (!util.checksumAccount(to)) errorMessage = "Invalid address"
 		if (to === this.publicAccount) errorMessage = "Can't send to yourself"
 		if (this.isViewProcessing)
-			errorMessage = "Please wait untill all pending blocks are accepted.."
+			errorMessage = "Still processing pendingblocks..."
 		if (
 			this.frontier ===
 			"0000000000000000000000000000000000000000000000000000000000000000"
@@ -888,7 +930,8 @@ export class Wallet {
 			representative: this.representative,
 			sendHash: this.sendHash,
 			isGenerating: this.isGenerating,
-			isConfirm: this.confirmSend
+			isConfirm: this.confirmSend,
+			offline: this.offline
 		}
 		this.sendToView("update", info)
 	}
@@ -920,7 +963,7 @@ export class Wallet {
 	}
 
 	checkIcon() {
-		if (this.locked && this.seed) {
+		if (this.locked) {
 			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
 			return
 		}
@@ -1023,9 +1066,5 @@ export class Wallet {
 		let paddedAmount = rawAmount.toString(16)
 		while (paddedAmount.length < 32) paddedAmount = "0" + paddedAmount
 		return paddedAmount.toUpperCase()
-	}
-
-	offlineServer(err) {
-		console.log(err)
 	}
 }

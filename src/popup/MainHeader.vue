@@ -17,6 +17,35 @@
         </svg>
       </button>
 
+      <div
+        class="offline"
+        v-show="offline"
+        @mouseover="showByIndex = i"
+        @mouseout="showByIndex = null"
+      >
+        <svg
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+        >
+          <path fill="none" d="M0 0h24v24H0z"></path>
+          <path
+            d="M12 4.02C7.6 4.02 4.02 7.6 4.02 12S7.6 19.98 12 19.98s7.98-3.58 7.98-7.98S16.4 4.02 12 4.02zM11.39 19v-5.5H8.25l4.5-8.5v5.5h3L11.39 19z"
+          ></path>
+          <path
+            fill="#fff"
+            d="M12 2.02c-5.51 0-9.98 4.47-9.98 9.98s4.47 9.98 9.98 9.98 9.98-4.47 9.98-9.98S17.51 2.02 12 2.02zm0 17.96c-4.4 0-7.98-3.58-7.98-7.98S7.6 4.02 12 4.02 19.98 7.6 19.98 12 16.4 19.98 12 19.98zM12.75 5l-4.5 8.5h3.14V19l4.36-8.5h-3V5z"
+          ></path>
+        </svg>
+
+        <div
+          class="offlineMSG"
+          v-show="showByIndex === i"
+        >Can't connect to the servers. Reconnecting...</div>
+      </div>
+
       <div class="settings" v-if="settings" width="13" height="13">
         <button id="resetButtonSettings" @click="showMenu = !showMenu" class="settingsButton">
           <svg
@@ -63,7 +92,10 @@ export default {
       from: "",
       showMenu: false,
       isUnlocked: false,
-      warning: false
+      warning: false,
+      showByIndex: null,
+      offline: false,
+      i: 0
     };
   },
   methods: {
@@ -87,6 +119,12 @@ export default {
         } else {
           this.from = "dashboard";
         }
+
+        this.offline = msg.data.offline;
+      }
+
+      if (msg.action === "offline") {
+        this.offline = msg.data;
       }
     },
     lockWallet() {
@@ -175,6 +213,25 @@ export default {
   &:hover {
     background-color: #466eff;
   }
+}
+
+.offline {
+  position: absolute;
+  right: 60px;
+  top: 21px;
+}
+
+.offlineMSG {
+  cursor: default;
+  width: 150px;
+  position: absolute;
+  top: 25px;
+  right: 5px;
+  padding: 8px;
+  border-radius: 3px;
+  background-color: #fff;
+  box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.4);
+  font-family: "RubikMedium", sans-serif;
 }
 
 .settings {

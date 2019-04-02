@@ -2,31 +2,15 @@
   <div class="app">
     <MainHeader></MainHeader>
     <router-view></router-view>
-
-    <!-- <div class="offlineOverlay" v-if="offline">
-      <div class="offline no-hl">
-        Can't connect to the VANO servers.
-        <br>
-        <br>
-        <button :disabled="disable" class="reconnectButton" @click="reconnect">Try to reconnect</button>
-        <br>
-        <br>
-        <a @click="goToLock" class="goBackToLocked">or go back to the locked screen</a>
-      </div>
-    </div>-->
   </div>
 </template>
 
 <script>
 import MainHeader from "./MainHeader";
-// import { setTimeout } from "timers";
 export default {
   name: "app",
   data() {
-    return {
-      // offline: false,
-      // disable: false
-    };
+    return {};
   },
   created() {
     this.$bus.onMessage.addListener(this.bgMessages);
@@ -37,22 +21,7 @@ export default {
       if (msg.action === "toPage") {
         this.$router.push({ name: msg.data });
       }
-      //if (msg.action === "offline") this.offline = true;
-      // if (msg.action === "online") this.offline = false;
     }
-    // reconnect() {
-    //   this.disable = true;
-    //   setTimeout(() => {
-    //     this.disable = false;
-    //   }, 5000);
-    //   this.$bus.postMessage({
-    //     action: "reconnect"
-    //   });
-    // },
-
-    // goToLock() {
-    //   this.$bus.postMessage({ action: "lockWallet" });
-    // }
   },
   components: { MainHeader }
 };
@@ -208,50 +177,6 @@ a {
   color: $font_color;
   text-decoration: none;
 }
-
-// .offlineOverlay {
-//   position: fixed;
-//   top: 0;
-//   bottom: 0;
-//   left: 0;
-//   right: 0;
-//   z-index: 3;
-//   background: rgba(34, 36, 38, 0.3);
-// }
-
-// .offline {
-//   position: relative;
-//   width: 80%;
-//   margin: 140px auto 0 auto;
-//   text-align: center;
-//   background-color: #df4b54;
-//   padding: 30px 8px;
-//   font-weight: 500;
-//   border-radius: 2px;
-//   color: #fff;
-//   z-index: 5;
-//   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.15);
-// }
-
-// .reconnectButton {
-//   border: none;
-//   font-size: 14px;
-//   padding: 5px 10px;
-//   margin-top: 5px;
-//   box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-//   font-weight: 500;
-//   cursor: pointer;
-// }
-
-// .reconnectButton:hover {
-//   background-color: #fff !important;
-// }
-
-// .goBackToLocked {
-//   color: #fff;
-//   text-decoration: underline;
-//   cursor: pointer;
-// }
 </style>
 
 

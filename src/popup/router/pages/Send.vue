@@ -2,8 +2,8 @@
   <div class="send">
     <div class="header">
       <div class="headerText no-hl container">
-        <h1>{{headerTitle}}</h1>
-        <p>{{headerText}}</p>
+        <h1 :class="{'removePad' : confirmScreen}">{{headerTitle}}</h1>
+        <p v-if="confirmScreen">Everything correct?</p>
       </div>
     </div>
     <div class="overview no-hl" v-if="!confirmScreen">
@@ -37,11 +37,11 @@
       <div class="address container">{{to_address}}</div>
     </div>
 
-    <button class="send no-hl" @click="trySend()" v-if="!generating">
+    <button class="send no-hl" @click="trySend()" v-if="sendCheck">
       <span>{{sendText}}</span>
     </button>
-    <button class="send no-hl" v-if="generating" :disabled="generating">
-      <span style="cursor: default">Generating work...</span>
+    <button class="send no-hl" v-else disabled>
+      <span style="cursor: default">Generating...</span>
     </button>
   </div>
 </template>
@@ -62,22 +62,29 @@ export default {
       generating: false,
       balance: 0,
       confirmScreen: false,
-      isConfirm: false
+      isConfirm: false,
+      isProcessing: false,
+      offline: false
     };
   },
   computed: {
+    sendCheck() {
+      if (this.isProcessing) {
+        return true;
+      }
+
+      if (this.generating) {
+        return false;
+      }
+
+      return true;
+    },
+
     headerTitle: function() {
       if (this.confirmScreen) {
         return "Confirm";
       }
       return "Send";
-    },
-
-    headerText: function() {
-      if (this.confirmScreen) {
-        return "Everything correct?";
-      }
-      return "It is hard to seperate from NANO";
     },
 
     sendText: function() {
@@ -117,10 +124,13 @@ export default {
       }
 
       if (msg.action === "update") {
+        console.log(msg.isProcessing);
         this.balance = msg.data.full_balance;
         this.generating = msg.data.isGenerating;
         this.isConfirm = msg.data.isConfirm;
         this.confirmScreen = msg.data.isConfirm;
+        this.isProcessing = msg.data.isProcessing;
+        this.offline = msg.data.offline;
       }
     },
 
@@ -130,7 +140,10 @@ export default {
 
     trySend() {
       this.errorMessage = false;
-
+      if (this.offline) {
+        this.errorMessage = "You are disconnected";
+        return;
+      }
       if (this.amount.length == 0) {
         this.errorMessage = "Amount-field is empty";
         return;
@@ -288,7 +301,6 @@ textarea:focus::-webkit-input-placeholder {
   right: 30px;
   margin-top: 7px;
   font-size: 11px;
-  z-index: 10;
   color: #2224263b;
 }
 
@@ -338,5 +350,14 @@ textarea:focus::-webkit-input-placeholder {
     word-break: break-all;
     padding-top: 5px;
   }
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
+}
+
+.header h1.removePad {
+  padding-bottom: 0px;
 }
 </style>
