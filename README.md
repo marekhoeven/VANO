@@ -10,6 +10,16 @@ The extension requires read/write access to allow for deeplink recognition on a 
 
 You can test deeplinks on my [DEMO page](https://marekhoeven.github.io/deeplink/). 
 
+## Todo
+
+- TESTS
+- Add addressbook (alias system?)
+- Optimalisation of JS functions
+- Improve some shitty CSS (on components and globally)
+- Documentation + better structure for teamwork 
+- Set more user-option like a minimum receive amount
+- Perhaps select what specific individual pendings to accept?
+
 ## How to run the extension locally
 
 ```bash
@@ -42,17 +52,6 @@ It also enable [Hot Module Reloading](https://webpack.js.org/concepts/hot-module
 
 Build a zip file following this format `<name>-v<version>.zip`, by reading `name` and `version` from `manifest.json` file.
 Zip file is located in `dist-zip` folder.
-
-## Todo
-
-- TESTS
-- Add addressbook (alias system?)
-- Optimalisation of JS functions
-- Improve some shitty CSS (on components and globally)
-- Documentation + better structure for teamwork 
-- Set more user-option like a minimum receive amount
-- Perhaps select what specific individual pendings to accept?
-
 
 ## Acknowledgements
 
