@@ -120,10 +120,14 @@ export default {
           this.from = "dashboard";
         }
 
-        this.offline = msg.data.offline;
+        if (this.isUnlocked) {
+          this.offline = msg.data.offline;
+        } else {
+          this.offline = false;
+        }
       }
 
-      if (msg.action === "offline") {
+      if (msg.action === "isOffline") {
         this.offline = msg.data;
       }
     },
@@ -144,6 +148,7 @@ export default {
   beforeMount() {
     this.$bus.onMessage.addListener(this.bgMessages);
     this.$bus.postMessage({ action: "isLocked" });
+    this.$bus.postMessage({ action: "isOffline" });
     if (this.isUnlocked) {
       this.$bus.postMessage({ action: "update" });
     }
@@ -151,6 +156,7 @@ export default {
 
   beforeUpdate() {
     this.$bus.postMessage({ action: "isLocked" });
+    this.$bus.postMessage({ action: "isOffline" });
     if (this.isUnlocked) {
       this.$bus.postMessage({ action: "update" });
     }

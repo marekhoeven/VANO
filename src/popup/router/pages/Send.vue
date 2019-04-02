@@ -40,8 +40,37 @@
     <button class="send no-hl" @click="trySend()" v-if="sendCheck">
       <span>{{sendText}}</span>
     </button>
-    <button class="send no-hl" v-else disabled>
-      <span style="cursor: default">Generating...</span>
+    <button class="send no-hl" v-else>
+      <span style="cursor: default">
+        <svg
+          version="1.1"
+          id="loader-1"
+          xmlns="http://www.w3.org/2000/svg"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          x="0px"
+          y="0px"
+          width="40px"
+          height="40px"
+          viewBox="0 0 50 50"
+          style="enable-background:new 0 0 50 50;"
+          xml:space="preserve"
+        >
+          <path
+            fill="#fff"
+            d="M43.935,25.145c0-10.318-8.364-18.683-18.683-18.683c-10.318,0-18.683,8.365-18.683,18.683h4.068c0-8.071,6.543-14.615,14.615-14.615c8.072,0,14.615,6.543,14.615,14.615H43.935z"
+          >
+            <animateTransform
+              attributeType="xml"
+              attributeName="transform"
+              type="rotate"
+              from="0 25 25"
+              to="360 25 25"
+              dur="0.6s"
+              repeatCount="indefinite"
+            ></animateTransform>
+          </path>
+        </svg>
+      </span>
     </button>
   </div>
 </template>
@@ -88,7 +117,7 @@ export default {
     },
 
     sendText: function() {
-      if (this.isConfirm) {
+      if (this.confirmScreen) {
         return "Confirm";
       }
       return "Send NANO";
@@ -126,8 +155,7 @@ export default {
       if (msg.action === "update") {
         console.log(msg.isProcessing);
         this.balance = msg.data.full_balance;
-        this.generating = msg.data.isGenerating;
-        this.isConfirm = msg.data.isConfirm;
+        this.generating = msg.data.isSending;
         this.confirmScreen = msg.data.isConfirm;
         this.isProcessing = msg.data.isProcessing;
         this.offline = msg.data.offline;
@@ -154,7 +182,7 @@ export default {
         return;
       }
 
-      if (this.isConfirm) {
+      if (this.confirmScreen) {
         this.errorMessage = false;
         this.generating = true;
         this.$bus.postMessage({

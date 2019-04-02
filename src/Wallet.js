@@ -22,6 +22,7 @@ export class Wallet {
 		this.newTransactions$ = new BehaviorSubject(null)
 		this.isSending = false
 		this.isChangingRep = false
+		this.isDeepSending = false
 		this.keepAliveSet = false
 		this.offline = true
 		this.reconnectTimeout = 5 * 1000
@@ -42,6 +43,13 @@ export class Wallet {
 		}
 	}
 
+	resetDeepLink() {
+		if (this.openDeepView) {
+			this.sendToView("failure", "failure")
+		}
+		this.isDeepSending = false
+	}
+
 	async deepSend(port, data) {
 		this.port = port
 		if (!data.confirmed) {
@@ -50,19 +58,22 @@ export class Wallet {
 		}
 
 		if (this.offline) {
-			this.sendToView("errorMessage", "You are disconnected")
+			if (this.openDeepView) {
+				this.sendToView("errorMessage", "You are disconnected")
+			}
 			return
 		}
 
-		this.isSending = true
+		this.isDeepSending = true
 
 		try {
-			this.sendToView("generating", "")
+			if (this.openDeepView) {
+				this.sendToView("generating", "")
+			}
 			const work = (await this.getWork(this.frontier, true, true)) || false
 			if (!work) {
 				console.log("1/ Error generating PoW")
-				this.sendToView("failure", "failure")
-				this.isSending = false
+				this.resetDeepLink()
 				return
 			}
 
@@ -70,29 +81,31 @@ export class Wallet {
 			this.pushBlock(block)
 				.then(response => {
 					if (response.hash) {
-						this.sendToView("success", response.hash)
-						this.frontier = response.hash
-						this.getNewWorkPool()
+						setTimeout(() => {
+							if (this.openDeepView) {
+								this.sendToView("success", response.hash)
+							}
 
+							this.frontier = response.hash
+							this.getNewWorkPool()
+						}, 1000)
 						// timeOut against spam
 						setTimeout(() => {
-							this.isSending = false
-						}, 4000)
+							this.isDeepSending = false
+						}, 5000)
 					} else {
 						console.log("2/ Pushblock error", response)
-						this.sendToView("failure", "failure")
-						this.isSending = false
+						this.resetDeepLink()
+						this.isDeepSending = false
 					}
 				})
 				.catch(err => {
 					console.log("2/ Pushblock error", err)
-					this.sendToView("failure", "failure")
-					this.isSending = false
+					this.resetDeepLink()
 				})
 		} catch (err) {
 			console.log("3/ Sending error:", err)
-			this.sendToView("failure", "failure")
-			this.isSending = false
+			this.resetDeepLink()
 		}
 	}
 	// BACKGROUND.JS STARTUP & OPENVIEW FUNCTIONS
@@ -134,6 +147,9 @@ export class Wallet {
 		this.workPool = (await util.getLocalStorageItem("work")) || false // {work, hash} from frontier
 
 		this.subscribeTransactions()
+		this.forcedLock = false
+		this.locked = false
+		this.toPage("dashboard")
 		this.connect()
 	}
 
@@ -162,8 +178,11 @@ export class Wallet {
 	}
 
 	forceDisconnect() {
+		this.forcedLock = true
+		this.updateView()
 		if (this.socket.connected && this.socket.ws) {
 			this.socket.ws.onclose = msg => {}
+			this.socket.ws.onerror = msg => {}
 			this.socket.ws.close()
 			delete this.socket.ws
 			this.socket.connected = false
@@ -180,23 +199,25 @@ export class Wallet {
 
 		if (!requestAccountInformation.ok) {
 			this.offline = true
-			this.updateView()
-			this.attemptReconnect()
+			this.checkOffline()
+			this.forceDisconnect()
+			setTimeout(() => this.attemptReconnect(), this.reconnectTimeout)
 			return
 		}
 
 		this.setupWalletInfo(requestAccountInformation.data.data)
-		this.locked = false
 		this.checkIcon()
 		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
 		this.getNewWorkPool()
 		this.offline = false
-		this.updateView()
+		this.checkOffline()
 		this.reconnectTimeout = 5 * 1000
 	}
 
 	connect() {
-		if (this.socket.connected && this.socket.ws) return
+		if ((this.socket.connected && this.socket.ws) || this.forcedLock) {
+			return
+		}
 		delete this.socket.ws
 		const ws = new WebSocket(WS_URL)
 		this.socket.ws = ws
@@ -218,22 +239,16 @@ export class Wallet {
 
 		ws.onerror = msg => {
 			this.offline = true
-			this.sendToView("offline", true)
-			try {
-				this.updateView()
-			} catch (err) {}
-
-			console.log("Socket error", msg)
+			this.socket.connected = false
+			this.checkOffline()
+			console.log("Socket error")
 		}
 
 		ws.onclose = msg => {
 			this.offline = true
-			this.sendToView("offline", true)
-			try {
-				this.updateView()
-			} catch (err) {}
+			this.checkOffline()
 			this.socket.connected = false
-			console.log("Socket closed", msg)
+			console.log("Socket closed")
 			setTimeout(() => this.attemptReconnect(), this.reconnectTimeout)
 		}
 
@@ -290,6 +305,22 @@ export class Wallet {
 
 				this.checkIcon()
 				this.updateView()
+
+				const notification_options = {
+					type: "basic",
+					iconUrl: "./icons/icon_128.png",
+					title: "Received NANO!",
+					message:
+						"New pending deposit of " +
+						util.rawToMnano(data.amount).toString() +
+						" NANO",
+					priority: 2,
+					silent: false
+				}
+
+				var timestamp = new Date().getTime()
+				var id = "NewPending" + timestamp
+				chrome.notifications.create(id, notification_options, function(id) {})
 			}
 
 			if (
@@ -457,15 +488,17 @@ export class Wallet {
 			this.pushBlock(block)
 				.then(response => {
 					if (response.hash) {
-						this.sendHash = response.hash
-						this.toPage("success")
-						this.frontier = response.hash
-						this.getNewWorkPool()
+						setTimeout(() => {
+							this.sendHash = response.hash
+							this.toPage("success")
+							this.frontier = response.hash
+							this.getNewWorkPool()
+						}, 1000)
 						// timeOut against spam
 						setTimeout(() => {
-							this.confirmSend = false
 							this.isSending = false
-						}, 4000)
+							this.confirmSend = false
+						}, 5000)
 					} else {
 						console.log("2/ Pushblock error", response)
 						this.resetConfirm()
@@ -693,6 +726,10 @@ export class Wallet {
 			this.sendToView("errorMessage", "Empty address-field")
 			return
 		}
+		if (this.isProcessing || this.isSending) {
+			this.sendToView("errorMessage", "Currently processing pending..")
+			return
+		}
 		if (newRep === this.representative) {
 			this.sendToView("errorMessage", "Already voting for this reprentative")
 			return
@@ -726,12 +763,28 @@ export class Wallet {
 			if (action === "lock") this.lock()
 			if (action === "update") this.updateView()
 			if (action === "isLocked") this.sendToView("isLocked", this.locked)
+			if (action === "isOffline") this.checkOffline()
 			if (action === "processPending") this.startProcessPending()
 			if (action === "checkSend") this.checkSend(data)
 			if (action === "confirmSend") this.send(data)
 			if (action === "resetConfirm") this.resetConfirm(data)
 			if (action === "changeRepresentative") this.checkChangeRep(data)
 			if (action === "removeWallet") this.removeWallet()
+		}
+	}
+
+	checkOffline() {
+		if (this.openDeepView || this.openPopup) {
+			if (!this.locked) {
+				this.sendToView("isOffline", this.offline)
+				if (this.offline) {
+					chrome.browserAction.setIcon({ path: "/icons/icon_128_offline.png" })
+				} else {
+					this.checkIcon()
+				}
+			} else {
+				this.sendToView("isOffline", false)
+			}
 		}
 	}
 
@@ -791,13 +844,10 @@ export class Wallet {
 	}
 
 	async lock(toLocked = true) {
-		if (toLocked) {
-			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
-			await this.toPage("locked")
-		}
+		this.forceDisconnect()
+		this.offline = true
 		this.locked = true
 		this.newTransactions$ = new BehaviorSubject(null)
-		this.offline = true
 		this.reconnectTimeout = 5 * 1000
 		this.keepaliveTimeout = 40 * 1000
 
@@ -815,19 +865,24 @@ export class Wallet {
 		this.history = []
 		this.workPool = {}
 
-		this.forceDisconnect()
-
 		delete this.accountPair
 		delete this.publicAccount
 		delete this.balance
 		delete this.frontier
 		delete this.representative
+
+		if (toLocked) {
+			chrome.browserAction.setIcon({ path: "/icons/icon_128_locked.png" })
+			await this.toPage("locked")
+			this.updateView()
+		}
 	}
 
 	async removeWallet() {
 		chrome.browserAction.setIcon({ path: "/icons/icon_128.png" })
 		this.lock(false)
 		this.toPage("welcome")
+		this.updateView()
 		await chrome.storage.local.remove(
 			["generatedSeed", "inputSeed", "amount", "to_address", "seed"],
 			function() {}
@@ -875,7 +930,12 @@ export class Wallet {
 		) {
 			errorMessage = "This account has nothing received yet"
 		}
-		if (this.isSending) {
+		if (
+			this.isSending ||
+			this.isChangingRep ||
+			this.isDeepSending ||
+			this.isGenerating
+		) {
 			errorMessage = "Cooling down... try again in a few seconds"
 		}
 		if (errorMessage) {
@@ -894,46 +954,68 @@ export class Wallet {
 
 	updateView() {
 		let result = []
-		this.pendingBlocks.forEach(element => {
-			let block = {
-				type: "pending",
-				amount: util.rawToMnano(element.amount).toString(),
-				account: element.account,
-				hash: element.hash
-			}
-			result.push(block)
-		})
 
-		this.history.forEach(element => {
-			let block = {
-				type: element.type,
-				amount: util.rawToMnano(element.amount).toString(),
-				account: element.account,
-				hash: element.hash
-			}
-			result.push(block)
-		})
+		if (!this.offline) {
+			this.pendingBlocks.forEach(element => {
+				let block = {
+					type: "pending",
+					amount: util.rawToMnano(element.amount).toString(),
+					account: element.account,
+					hash: element.hash
+				}
+				result.push(block)
+			})
 
-		let full_balance = util.rawToMnano(this.balance).toString()
-		let prep_balance = full_balance.toString().slice(0, 8)
-		if (prep_balance === "0") {
-			prep_balance = "00.00"
+			this.history.forEach(element => {
+				let block = {
+					type: element.type,
+					amount: util.rawToMnano(element.amount).toString(),
+					account: element.account,
+					hash: element.hash
+				}
+				result.push(block)
+			})
+
+			let full_balance = util.rawToMnano(this.balance).toString()
+			let prep_balance = full_balance.toString().slice(0, 8)
+			if (prep_balance === "0") {
+				prep_balance = "00.00"
+			}
+			let info = {
+				balance: prep_balance,
+				total_pending: this.pendingBlocks.length || 0,
+				transactions: result,
+				full_balance,
+				frontier: this.frontier,
+				publicAccount: this.publicAccount,
+				isProcessing: this.isViewProcessing,
+				representative: this.representative,
+				sendHash: this.sendHash,
+				isGenerating: this.isGenerating,
+				isSending: this.isSending,
+				isConfirm: this.confirmSend,
+				isDeepSending: this.isDeepSending,
+				offline: this.offline
+			}
+			this.sendToView("update", info)
+		} else {
+			this.sendToView("update", {
+				balance: "--",
+				total_pending: 0,
+				transactions: [],
+				full_balance: "--",
+				frontier: "",
+				publicAccount: "--",
+				isProcessing: this.isViewProcessing,
+				representative: "--",
+				sendHash: "",
+				isGenerating: this.isGenerating,
+				isSending: this.isSending,
+				isConfirm: this.confirmSend,
+				isDeepSending: this.isDeepSending,
+				offline: true
+			})
 		}
-		let info = {
-			balance: prep_balance,
-			total_pending: this.pendingBlocks.length || 0,
-			transactions: result,
-			full_balance,
-			frontier: this.frontier,
-			publicAccount: this.publicAccount,
-			isProcessing: this.isViewProcessing,
-			representative: this.representative,
-			sendHash: this.sendHash,
-			isGenerating: this.isGenerating,
-			isConfirm: this.confirmSend,
-			offline: this.offline
-		}
-		this.sendToView("update", info)
 	}
 
 	// BASIC UTILITY FUNCTIONS

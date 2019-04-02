@@ -24,8 +24,8 @@
     <button
       class="change"
       ref="changeButton"
-      :class="{notClick : changing && !succesChange, 'successChange': succesChange}"
-      :disabled="succesChange || changing"
+      :class="{notClick : (changing && !isProcessing) && !succesChange, 'successChange': succesChange}"
+      :disabled="succesChange || (changing && !isProcessing)"
       @click="change"
     >{{isChanging}}</button>
   </div>
@@ -44,14 +44,15 @@ export default {
       errorMessage: false,
       changing: false,
       succesChange: false,
-      offline: false
+      offline: false,
+      isProcessing: false
     };
   },
   computed: {
     isChanging() {
       if (this.succesChange) {
         return "Successfully changed!";
-      } else if (this.changing) {
+      } else if (this.changing && !this.isProcessing) {
         return "Changing...";
       } else {
         return "Change representative";
@@ -64,6 +65,7 @@ export default {
         this.representative = msg.data.representative;
         this.changing = msg.data.isGenerating;
         this.offline = msg.data.offline;
+        this.isProcessing = msg.data.isProcessing;
       }
 
       if (msg.action === "changedRep") {

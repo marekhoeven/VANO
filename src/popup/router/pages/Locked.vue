@@ -3,7 +3,6 @@
     <div class="header">
       <div class="headerText no-hl container">
         <h1>Wallet locked</h1>
-        <p>Enter your password to unlock</p>
       </div>
     </div>
 
@@ -67,6 +66,11 @@ export default {
 <style lang="scss" scoped>
 .header {
   height: 123px;
+}
+
+h1 {
+  padding-bottom: 20px;
+  font-size: 17px;
 }
 
 .shake {
