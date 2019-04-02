@@ -2,7 +2,7 @@
 	"name": "vano",
 	"version": "1.0.0",
 	"description": "VANO: a NANO light-wallet browser extension",
-	"author": "Marek <github@marekhoeven.com>",
+	"author": "",
 	"license": "MIT",
 	"scripts": {
 		"build": "cross-env NODE_ENV=production webpack --hide-modules",
