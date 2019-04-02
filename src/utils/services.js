@@ -34,7 +34,7 @@ export function getResponseFromAwait(promise) {
 		.catch(error => Promise.resolve({ ok: false, error }))
 }
 
-// Credits to nanovault:
+// Lots of credits to Nanovault:
 // https://github.com/cronoh/nanovault/blob/master/src/app/services/util.service.ts
 
 // Basic constants
@@ -310,7 +310,6 @@ export function lessThanGenesisAmount(rawAmount) {
 				.minus(new BigNumber("340282366920938463463374607431768211455"))
 				.toFixed() > 0
 		) {
-			console.log("Too much to even send")
 			return false
 		}
 		return true

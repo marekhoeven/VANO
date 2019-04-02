@@ -5,10 +5,8 @@ import axios from "axios"
 import "./pow/nano-webgl-pow.js"
 import * as startThreads from "./pow/startThreads.js"
 
-// const WS_URL = process.env.WS_URL
-// const API_URL = process.env.API_POINT
-const WS_URL = "ws:localhost:9001/sockets"
-const API_URL = "http://localhost:3000/node-api"
+const WS_URL = process.env.WS_URL
+const API_URL = process.env.API_POINT
 
 export class Wallet {
 	constructor() {
@@ -88,7 +86,7 @@ export class Wallet {
 
 							this.frontier = response.hash
 							this.getNewWorkPool()
-						}, 1000)
+						}, 500)
 						// timeOut against spam
 						setTimeout(() => {
 							this.isDeepSending = false
@@ -200,7 +198,11 @@ export class Wallet {
 		if (!requestAccountInformation.ok) {
 			this.offline = true
 			this.checkOffline()
-			this.forceDisconnect()
+			this.socket.ws.onclose = msg => {}
+			this.socket.ws.onerror = msg => {}
+			this.socket.ws.close()
+			delete this.socket.ws
+			this.socket.connected = false
 			setTimeout(() => this.attemptReconnect(), this.reconnectTimeout)
 			return
 		}
@@ -210,6 +212,7 @@ export class Wallet {
 		if (["import", "locked"].includes(this.page)) this.toPage("dashboard")
 		this.getNewWorkPool()
 		this.offline = false
+		this.updateView()
 		this.checkOffline()
 		this.reconnectTimeout = 5 * 1000
 	}
@@ -493,7 +496,7 @@ export class Wallet {
 							this.toPage("success")
 							this.frontier = response.hash
 							this.getNewWorkPool()
-						}, 1000)
+						}, 500)
 						// timeOut against spam
 						setTimeout(() => {
 							this.isSending = false
@@ -528,7 +531,6 @@ export class Wallet {
 		this.isProcessing = true
 		const nextBlock = this.pendingBlocks[0]
 		if (this.successfullBlocks.find(b => b.hash == nextBlock.hash)) {
-			//console.log("Already found in successfullBlocks..retry")
 			return setTimeout(() => this.processPending(), 1500)
 		}
 
@@ -884,7 +886,7 @@ export class Wallet {
 		this.toPage("welcome")
 		this.updateView()
 		await chrome.storage.local.remove(
-			["generatedSeed", "inputSeed", "amount", "to_address", "seed"],
+			["generatedSeed", "inputSeed", "amount", "to_address", "seed", "work"],
 			function() {}
 		)
 	}
@@ -954,7 +956,6 @@ export class Wallet {
 
 	updateView() {
 		let result = []
-
 		if (!this.offline) {
 			this.pendingBlocks.forEach(element => {
 				let block = {

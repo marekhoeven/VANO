@@ -14,7 +14,6 @@ export default {
   },
   created() {
     this.$bus.onMessage.addListener(this.bgMessages);
-    // this.$bus.postMessage({ action: "onlineCheck" });
   },
   methods: {
     bgMessages(msg, sender) {

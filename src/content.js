@@ -18,9 +18,11 @@ for (var i = 0; i < links.length; i++) {
 				.split("=")[1] || false
 		let address = href.match(r_address).toString()
 
-		links[i].addEventListener("click", event => {
-			event.preventDefault()
-			port.postMessage({ address: address, amount: amount })
-		})
+		if (checksumAccount(address) && lessThanGenesisAmount(amount)) {
+			links[i].addEventListener("click", event => {
+				event.preventDefault()
+				port.postMessage({ address: address, amount: amount })
+			})
+		}
 	}
 }
