@@ -68,4 +68,4 @@ Special thanks to the following repo's. You made the creation of this extension 
 ## Donate
 
 If you like what I've made and/or are feeling generous, you can donate to me at
-`xrb_3tfccg1pfr9k8o548jb6bj9fyyc4mmhnpepounzneobfwuq8won9enactbkk`
+`xrb_1xrhezmywgmq3n13d5rdnntubdkafi8qnxjcmwj6wqhwis8go84m18639tue`
