@@ -5,8 +5,8 @@ import axios from "axios"
 import "./pow/nano-webgl-pow.js"
 import * as startThreads from "./pow/startThreads.js"
 
-const WS_URL = process.env.WS_URL
-const API_URL = process.env.API_POINT
+const WS_URL = process.env.WS_URL // "wss://vano.app/sockets"
+const API_URL = process.env.API_POINT // "https://vano.app/node-api"
 
 export class Wallet {
 	constructor() {
