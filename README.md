@@ -38,7 +38,7 @@ $ npm run build
 
 **:warning: WARNING: Please save your seed somewhere safe! If you uninstall/remove the extension, your imported seed is gone and has to be imported again**
 
-Some special commands for development:
+## Some special commands for development:
 
 ### `npm run build` 
 
