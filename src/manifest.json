@@ -17,13 +17,7 @@
 			"js": ["content.js"]
 		}
 	],
-	"permissions": [
-		"storage",
-		"https://*/*",
-		"http://*/*",
-		"activeTab",
-		"notifications"
-	],
+	"permissions": ["storage", "notifications"],
 	"background": {
 		"scripts": ["background.js"]
 	}
