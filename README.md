@@ -36,7 +36,7 @@ $ npm run build
   6.1 Select the entire **dist**-folder inside your unzipped folder
 7. Vano is now installed locally and can be used together with [deeplinks](https://marekhoeven.github.io/deeplink/).
 
-**WARNING: Please save your seed somewhere safe! If you uninstall/remove the extension, your imported seed is gone and has to be imported again**
+**:warning: WARNING: Please save your seed somewhere safe! If you uninstall/remove the extension, your imported seed is gone and has to be imported again**
 
 Some special commands for development:
 
