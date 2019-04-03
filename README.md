@@ -22,8 +22,8 @@ $ npm run build
 
 4. Open Chrome/Brave and enter as URL: 'chrome://extensions/' 
 5. In the right-top corner toggle 'Developer mode'
-6. On the left-top corner click 'Load unpacked'
-7. Select the entire **dist**-folder inside your unzipped folder
+6. In the left-top corner click 'Load unpacked'
+7. Select the **dist**-folder inside your unzipped folder
 8. Vano is now installed locally and can be used together with [deeplinks](https://marekhoeven.github.io/deeplink/).
 
 **:warning: WARNING: Please save your seed somewhere safe! If you uninstall/remove the extension, your imported seed is gone and has to be imported again**
