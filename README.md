@@ -57,7 +57,7 @@ Zip file is located in `dist-zip` folder.
 
 ## Todo
 
-- TESTS
+- Tests
 - Add addressbook (alias system?)
 - Optimalisation of JS functions
 - Improve some shitty CSS (on components and globally)
