@@ -50,7 +50,7 @@ It also enable [Hot Module Reloading](https://webpack.js.org/concepts/hot-module
 
 :warning: Keep in mind that HMR only works for your **background** entry.
 
-### `npm run build-zip`
+#### `npm run build-zip`
 
 Build a zip file following this format `<name>-v<version>.zip`, by reading `name` and `version` from `manifest.json` file.
 Zip file is located in `dist-zip` folder.
