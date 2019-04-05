@@ -1,5 +1,7 @@
 global.browser = require("webextension-polyfill")
 import { Wallet } from "./Wallet.js"
+import { checksumAccount } from "./utils/services.js"
+import * as DOMPurify from "dompurify"
 
 function startExtension() {
 	let deepLinkPopUp = false
@@ -15,54 +17,72 @@ function startExtension() {
 
 		if (port.name === "contentControl") {
 			port.onMessage.addListener(async msg => {
-				if (!wallet.locked) {
-					wallet.setDeepLinkData(msg.amount, msg.address)
-					await chrome.windows.getCurrent(async function(win) {
-						let top = win.top + 90
-						let left = win.left + win.width - 330
-						deepLinkPopUp = window.open(
-							"deeplinkSend/index.html",
-							"Deeplink",
-							"height=460,width=310,top=" +
-								top +
-								",left=" +
-								left +
-								"status=yes,toolbar=no,menubar=no,location=no"
-						)
+				try {
+					let parseMsg = JSON.stringify(msg)
+					let contentData = JSON.parse(DOMPurify.sanitize(parseMsg))
+					if (
+						checksumAccount(contentData.address) &&
+						/^\d+$/.test(contentData.amount)
+					) {
+						if (!wallet.locked) {
+							wallet.setDeepLinkData(contentData.amount, contentData.address)
+							await chrome.windows.getCurrent(async function(win) {
+								let top = win.top + 90
+								let left = win.left + win.width - 330
+								deepLinkPopUp = window.open(
+									"deeplinkSend/index.html",
+									"Deeplink",
+									"height=460,width=310,top=" +
+										top +
+										",left=" +
+										left +
+										"status=yes,toolbar=no,menubar=no,location=no"
+								)
 
-						// Auto-close when onblur
-						deepLinkPopUp.onblur = function() {
-							this.close()
+								// Auto-close when onblur
+								deepLinkPopUp.onblur = function() {
+									this.close()
+								}
+							})
 						}
-					})
-				}
 
-				if (wallet.locked) {
-					window.alert("Please unlock (or create) your VANO wallet")
+						if (wallet.locked) {
+							window.alert("Please unlock (or create) your VANO wallet")
+						}
+					}
+				} catch (e) {
+					return console.log("Error contentControl:", e)
 				}
 			})
 		}
 
 		if (port.name === "deeplinkController") {
 			port.onMessage.addListener(async msg => {
-				if (msg.action === "close") {
-					deepLinkPopUp.close()
-				}
+				try {
+					let parseMsg = JSON.stringify(msg)
+					let contentData = JSON.parse(DOMPurify.sanitize(parseMsg))
 
-				if (msg.action === "setFields") {
-					wallet.openDeepView = true
-					let setFieldData = {
-						amount: wallet.deeplinkData.MNANO,
-						to: wallet.deeplinkData.to
+					if (contentData.action === "close") {
+						deepLinkPopUp.close()
 					}
-					port.postMessage({
-						action: "setFields",
-						data: setFieldData
-					})
-				}
 
-				if (msg.action === "deepSend") {
-					wallet.deepSend(port, msg.data)
+					if (contentData.action === "setFields") {
+						wallet.openDeepView = true
+						let setFieldData = {
+							amount: wallet.deeplinkData.MNANO,
+							to: wallet.deeplinkData.to
+						}
+						port.postMessage({
+							action: "setFields",
+							data: setFieldData
+						})
+					}
+
+					if (contentData.action === "deepSend") {
+						wallet.deepSend(port, contentData.data)
+					}
+				} catch (e) {
+					return console.log("Error deeplinkController:", e)
 				}
 			})
 

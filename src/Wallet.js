@@ -4,6 +4,7 @@ import { BigNumber } from "bignumber.js"
 import axios from "axios"
 import "./pow/nano-webgl-pow.js"
 import * as startThreads from "./pow/startThreads.js"
+import * as DOMPurify from "dompurify"
 
 const WS_URL = "wss://vano.app/sockets"
 const API_URL = "https://vano.app/node-api"
@@ -50,15 +51,16 @@ export class Wallet {
 
 	async deepSend(port, data) {
 		this.port = port
-		if (!data.confirmed) {
-			this.checkSend(data)
-			return
-		}
 
 		if (this.offline) {
 			if (this.openDeepView) {
 				this.sendToView("errorMessage", "You are disconnected")
 			}
+			return
+		}
+
+		if (!data.confirmed) {
+			this.checkSend(data)
 			return
 		}
 
@@ -755,23 +757,30 @@ export class Wallet {
 	// FUNCTIONS TO INTERACT WITH THE WALLET VIEW
 	// ==================================================================
 	actionFromWalletView(msg) {
-		if (this.port.name === "popupController") {
-			const action = msg.action
-			const data = msg.data
+		try {
+			let parseMsg = JSON.stringify(msg)
+			let popupMsg = JSON.parse(DOMPurify.sanitize(parseMsg))
 
-			if (action === "toPage") this.toPage(data)
-			if (action === "import") this.checkImport(data)
-			if (action === "unlock") this.unlock(data)
-			if (action === "lock") this.lock()
-			if (action === "update") this.updateView()
-			if (action === "isLocked") this.sendToView("isLocked", this.locked)
-			if (action === "isOffline") this.checkOffline()
-			if (action === "processPending") this.startProcessPending()
-			if (action === "checkSend") this.checkSend(data)
-			if (action === "confirmSend") this.send(data)
-			if (action === "resetConfirm") this.resetConfirm(data)
-			if (action === "changeRepresentative") this.checkChangeRep(data)
-			if (action === "removeWallet") this.removeWallet()
+			if (this.port.name === "popupController") {
+				const action = popupMsg.action
+				const data = popupMsg.data
+
+				if (action === "toPage") this.toPage(data)
+				if (action === "import") this.checkImport(data)
+				if (action === "unlock") this.unlock(data)
+				if (action === "lock") this.lock()
+				if (action === "update") this.updateView()
+				if (action === "isLocked") this.sendToView("isLocked", this.locked)
+				if (action === "isOffline") this.checkOffline()
+				if (action === "processPending") this.startProcessPending()
+				if (action === "checkSend") this.checkSend(data)
+				if (action === "confirmSend") this.send(data)
+				if (action === "resetConfirm") this.resetConfirm(data)
+				if (action === "changeRepresentative") this.checkChangeRep(data)
+				if (action === "removeWallet") this.removeWallet()
+			}
+		} catch (e) {
+			return console.log("Error actionFromWalletView", e)
 		}
 	}
 
