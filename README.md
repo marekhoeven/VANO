@@ -3,8 +3,6 @@ A NANO light-wallet browser extension. It works with  NANO, a fast & fee-less cu
 
 **VANO is still in beta, *do not* store large amounts of NANO on this wallet!**
 
-![Dashboard](https://github.com/marekhoeven/VANO/blob/master/dashboard.png)
-
 ## Deeplink support
 The extension requires read/write access to allow for deeplink recognition on a browser. If detected, clicking on a deeplink will automatically open a popup with the amount & address filled in, ready to be send. This feature currently only works for Chrome/Brave users (showing a popup on firefox seems to be difficult). 
 
